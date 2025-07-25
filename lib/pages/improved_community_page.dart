@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
+import '../services/favorites_service.dart';
+import '../services/social_interaction_service.dart';
 import 'dream_detail_page.dart';
 
 class ImprovedCommunityPage extends StatefulWidget {
@@ -15,30 +18,93 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   final DreamStorageService _dreamStorage = DreamStorageService();
+  final FavoritesService _favoritesService = FavoritesService();
+  final SocialInteractionService _socialService = SocialInteractionService();
 
   List<SavedDream> _userDreams = [];
   List<SavedDream> _communityDreams = [];
   List<SavedDream> _favoriteDreams = [];
   List<SavedDream> _filteredDreams = [];
   bool _isLoading = true;
-  String _selectedCategory = 'Tutti';
-  String _sortBy = 'Più recenti';
+  String _selectedCategory = 'all';
+  String _sortBy = 'newest';
+  String _selectedLanguage = 'all';
 
-  final List<String> _categories = [
-    'Tutti',
-    'Incubi',
-    'Sogni lucidi',
-    'Sogni ricorrenti',
-    'Sogni profetici',
-    'Altri',
-  ];
+  // Mappe per i contatori sociali
+  Map<String, int> _dreamLikeCounts = {};
+  Map<String, int> _dreamCommentCounts = {};
+  Map<String, bool> _userLikedDreams = {};
+  Map<String, bool> _userFavoriteDreams = {};
 
-  final List<String> _sortOptions = [
-    'Più recenti',
-    'Più popolari',
-    'Più commentati',
-    'Alfabetico',
-  ];
+  // Mappe per i like dei commenti
+  Map<String, int> _commentLikeCounts = {};
+  Map<String, bool> _userLikedComments = {};
+
+  // Variabile per forzare l'aggiornamento dei commenti
+  int _commentsUpdateCounter = 0;
+
+  // Etichette multilingue per categorie
+  List<String> get _categories {
+    return ['all', 'nightmare', 'adventure', 'romance', 'fantasy', 'recurring'];
+  }
+
+  // Etichette multilingue per ordinamento
+  List<String> get _sortOptions {
+    return ['newest', 'alphabetical', 'popular'];
+  }
+
+  // Opzioni per filtro lingua
+  List<String> get _languageOptions {
+    return ['all', 'italian', 'english'];
+  }
+
+  String _getCategoryDisplayName(String categoryKey) {
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+    switch (categoryKey) {
+      case 'all':
+        return isEnglish ? 'All' : 'Tutti';
+      case 'nightmare':
+        return isEnglish ? 'Nightmare' : 'Incubo';
+      case 'adventure':
+        return isEnglish ? 'Adventure' : 'Avventura';
+      case 'romance':
+        return isEnglish ? 'Romance' : 'Romantico';
+      case 'fantasy':
+        return isEnglish ? 'Fantasy' : 'Fantasy';
+      case 'recurring':
+        return isEnglish ? 'Recurring' : 'Ricorrente';
+      default:
+        return categoryKey;
+    }
+  }
+
+  String _getSortDisplayName(String sortKey) {
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+    switch (sortKey) {
+      case 'newest':
+        return isEnglish ? 'Newest' : 'Più recenti';
+      case 'alphabetical':
+        return isEnglish ? 'Alphabetical' : 'Alfabetico';
+      case 'popular':
+        return isEnglish ? 'Popular' : 'Popolari';
+      default:
+        return sortKey;
+    }
+  }
+
+  String _getLanguageDisplayName(String languageKey) {
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+    switch (languageKey) {
+      case 'all':
+        return isEnglish ? 'All' : 'Tutte';
+      case 'italian':
+        return isEnglish ? 'Italian' : 'Italiano';
+      case 'english':
+        return isEnglish ? 'English' : 'Inglese';
+      default:
+        return languageKey;
+    }
+  }
 
   @override
   void initState() {
@@ -57,17 +123,103 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   Future<void> _loadDreams() async {
     setState(() => _isLoading = true);
     try {
+      // Prima rimuovi eventuali duplicati esistenti
+      await _dreamStorage.removeDuplicates();
+
       final dreams = await _dreamStorage.getSavedDreams();
       setState(() {
         _userDreams = dreams;
+
+        // Inizializza community dreams con i sogni di esempio
         _communityDreams = _generateSampleCommunityDreams();
-        _favoriteDreams = []; // Per ora vuota, da implementare in futuro
+
+        // Aggiungi i sogni dell'utente che sono condivisi con la community
+        // ma solo se non sono già presenti (evita duplicazioni)
+        for (final userDream in dreams) {
+          if (userDream.isSharedWithCommunity) {
+            final existingIndex = _communityDreams.indexWhere(
+              (d) => d.id == userDream.id,
+            );
+            if (existingIndex == -1) {
+              _communityDreams.add(userDream);
+            } else {
+              _communityDreams[existingIndex] = userDream;
+            }
+          }
+        }
+
+        // Rimuovi eventuali duplicati che potrebbero essersi formati
+        _removeDuplicatesFromCommunity();
+
         _filteredDreams = _communityDreams;
         _isLoading = false;
       });
+
+      // Carica i sogni preferiti separatamente
+      _loadFavoriteDreams();
+
+      // Carica i dati sociali (like e commenti) per tutti i sogni
+      _loadSocialData();
     } catch (e) {
       print('Errore caricamento sogni: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadFavoriteDreams() async {
+    try {
+      final favorites = await _favoritesService.getFavoriteDreams();
+      setState(() {
+        _favoriteDreams = favorites;
+      });
+    } catch (e) {
+      print('Errore caricamento preferiti: $e');
+    }
+  }
+
+  Future<void> _loadSocialData() async {
+    // Carica i dati sociali per tutti i sogni della community
+    for (final dream in _communityDreams) {
+      try {
+        final likeCount = await _socialService.getDreamLikes(dream.id);
+        final comments = await _socialService.getDreamComments(dream.id);
+        final isLiked = await _socialService.hasUserLikedDream(dream.id);
+        final isFavorite = await _favoritesService.isFavorite(dream.id);
+
+        setState(() {
+          _dreamLikeCounts[dream.id] = likeCount;
+          _dreamCommentCounts[dream.id] = comments.length;
+          _userLikedDreams[dream.id] = isLiked;
+          _userFavoriteDreams[dream.id] = isFavorite;
+        });
+
+        // Carica i dati dei like per i commenti di questo sogno
+        await _loadCommentLikesData(comments);
+      } catch (e) {
+        print('Errore caricamento dati sociali per sogno ${dream.id}: $e');
+      }
+    }
+  }
+
+  Future<void> _loadCommentLikesData(
+    List<Map<String, dynamic>> comments,
+  ) async {
+    // Carica i dati dei like per ogni commento
+    for (final comment in comments) {
+      try {
+        final commentId = comment['id'];
+        if (commentId != null) {
+          final likeCount = await _socialService.getCommentLikes(commentId);
+          final isLiked = await _socialService.hasUserLikedComment(commentId);
+
+          setState(() {
+            _commentLikeCounts[commentId] = likeCount;
+            _userLikedComments[commentId] = isLiked;
+          });
+        }
+      } catch (e) {
+        print('Errore caricamento like commento ${comment['id']}: $e');
+      }
     }
   }
 
@@ -82,6 +234,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         createdAt: DateTime.now().subtract(const Duration(days: 1)),
         tags: ['volo', 'libertà', 'città'],
         isSharedWithCommunity: true,
+        language: 'italian',
       ),
       SavedDream(
         id: 'community_2',
@@ -92,6 +245,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
         tags: ['oceano', 'pace', 'infinito'],
         isSharedWithCommunity: true,
+        language: 'italian',
       ),
       SavedDream(
         id: 'community_3',
@@ -102,6 +256,41 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         createdAt: DateTime.now().subtract(const Duration(days: 3)),
         tags: ['labirinto', 'ricordi', 'passato'],
         isSharedWithCommunity: true,
+        language: 'italian',
+      ),
+      SavedDream(
+        id: 'community_4',
+        title: 'Flying Through the Stars',
+        dreamText:
+            'I was soaring through a vast cosmic landscape, stars twinkling all around me...',
+        interpretation:
+            'A dream representing aspirations and limitless potential',
+        createdAt: DateTime.now().subtract(const Duration(days: 4)),
+        tags: ['flying', 'stars', 'cosmic'],
+        isSharedWithCommunity: true,
+        language: 'english',
+      ),
+      SavedDream(
+        id: 'community_5',
+        title: 'The Ancient Forest',
+        dreamText:
+            'I walked through an ancient forest where trees whispered forgotten secrets...',
+        interpretation: 'Connection with nature and ancestral wisdom',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        tags: ['forest', 'nature', 'ancient'],
+        isSharedWithCommunity: true,
+        language: 'english',
+      ),
+      SavedDream(
+        id: 'community_6',
+        title: 'The Mirror World',
+        dreamText:
+            'Everything was reversed in this strange mirror world where I lived...',
+        interpretation: 'Self-reflection and examining different perspectives',
+        createdAt: DateTime.now().subtract(const Duration(days: 6)),
+        tags: ['mirror', 'reflection', 'perspective'],
+        isSharedWithCommunity: true,
+        language: 'english',
       ),
     ];
   }
@@ -109,6 +298,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   Widget _buildWelcomeWidget() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white.withOpacity(0.9) : Colors.black87;
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -126,7 +316,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Benvenuto nella Community',
+            isEnglish ? 'Welcome to Community' : 'Benvenuto nella Community',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -135,7 +325,9 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           ),
           const SizedBox(height: 8),
           Text(
-            'Esplora i sogni degli altri, condividi i tuoi e scopri nuove interpretazioni!',
+            isEnglish
+                ? 'Explore other people\'s dreams, share yours and discover new interpretations!'
+                : 'Esplora i sogni degli altri, condividi i tuoi e scopri nuove interpretazioni!',
             style: TextStyle(fontSize: 14, color: textColor.withOpacity(0.8)),
           ),
         ],
@@ -152,7 +344,9 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Cerca sogni...',
+              hintText: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Search dreams...'
+                  : 'Cerca sogni...',
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -171,19 +365,27 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 child: DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   decoration: InputDecoration(
-                    labelText: 'Categoria',
+                    labelText:
+                        Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Cat.'
+                        : 'Cat.',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 6,
+                      vertical: 4,
                     ),
+                    isDense: true,
                   ),
+                  isExpanded: true,
                   items: _categories.map((category) {
                     return DropdownMenuItem(
                       value: category,
-                      child: Text(category),
+                      child: Text(
+                        _getCategoryDisplayName(category),
+                        style: TextStyle(fontSize: 12),
+                      ),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -194,22 +396,69 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                   },
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 3),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _sortBy,
+                  value: _selectedLanguage,
                   decoration: InputDecoration(
-                    labelText: 'Ordina per',
+                    labelText:
+                        Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Lang.'
+                        : 'Lingua',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 6,
+                      vertical: 4,
                     ),
+                    isDense: true,
                   ),
+                  isExpanded: true,
+                  items: _languageOptions.map((language) {
+                    return DropdownMenuItem(
+                      value: language,
+                      child: Text(
+                        _getLanguageDisplayName(language),
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedLanguage = value!;
+                      _filterDreams(_searchController.text);
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 3),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _sortBy,
+                  decoration: InputDecoration(
+                    labelText:
+                        Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Sort'
+                        : 'Ordina',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    isDense: true,
+                  ),
+                  isExpanded: true,
                   items: _sortOptions.map((option) {
-                    return DropdownMenuItem(value: option, child: Text(option));
+                    return DropdownMenuItem(
+                      value: option,
+                      child: Text(
+                        _getSortDisplayName(option),
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    );
                   }).toList(),
                   onChanged: (value) {
                     setState(() {
@@ -233,28 +482,51 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
             dream.title.toLowerCase().contains(query.toLowerCase()) ||
             dream.dreamText.toLowerCase().contains(query.toLowerCase());
         final matchesCategory =
-            _selectedCategory == 'Tutti' ||
+            _selectedCategory == 'all' ||
             dream.tags.any(
               (tag) =>
                   tag.toLowerCase().contains(_selectedCategory.toLowerCase()),
             );
-        return matchesQuery && matchesCategory;
+
+        // Filtro per lingua (per ora basato sul contenuto del testo)
+        final matchesLanguage =
+            _selectedLanguage == 'all' ||
+            _dreamMatchesLanguage(dream, _selectedLanguage);
+
+        return matchesQuery && matchesCategory && matchesLanguage;
       }).toList();
       _sortDreams();
     });
   }
 
+  // Metodo per determinare se un sogno corrisponde alla lingua selezionata
+  bool _dreamMatchesLanguage(SavedDream dream, String language) {
+    if (language == 'all') return true;
+
+    // Se il sogno ha il campo language, usalo direttamente
+    if (dream.language.isNotEmpty) {
+      return dream.language == language;
+    }
+
+    // Fallback: usa il metodo di rilevamento automatico per sogni esistenti senza campo language
+    final detectedLanguage = SavedDream.detectLanguage(
+      '${dream.title} ${dream.dreamText} ${dream.interpretation}',
+    );
+    return detectedLanguage == language;
+  }
+
   void _sortDreams() {
     setState(() {
       switch (_sortBy) {
-        case 'Più recenti':
+        case 'newest':
           _filteredDreams.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           break;
-        case 'Alfabetico':
+        case 'alphabetical':
           _filteredDreams.sort((a, b) => a.title.compareTo(b.title));
           break;
+        case 'popular':
         default:
-          // Per 'Più popolari' e 'Più commentati' manteniamo l'ordine attuale
+          // Per 'popular' manteniamo l'ordine attuale
           break;
       }
     });
@@ -264,13 +536,15 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => DreamDetailPage(dream: dream),
             ),
           );
+          // Ricarica i dati sociali quando si torna dalla pagina del sogno
+          _loadSocialData();
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -295,9 +569,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                       children: [
                         Text(
                           dream.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         Text(
@@ -319,7 +594,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 dream.dreamText,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               if (dream.tags.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -327,8 +605,17 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                   spacing: 4,
                   children: dream.tags.take(3).map((tag) {
                     return Chip(
-                      label: Text(tag, style: const TextStyle(fontSize: 10)),
+                      label: Text(
+                        tag,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant.withOpacity(0.7),
                     );
                   }).toList(),
                 ),
@@ -336,24 +623,64 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.favorite, color: Colors.red, size: 16),
-                      SizedBox(width: 4),
-                      Text('0'),
-                    ],
+                  // Pulsante Like
+                  GestureDetector(
+                    onTap: () => _toggleLikeFromCommunity(dream),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          color: (_userLikedDreams[dream.id] ?? false)
+                              ? Colors.red
+                              : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_dreamLikeCounts[dream.id] ?? 0}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 16),
-                  const Row(
-                    children: [
-                      Icon(Icons.comment, color: Colors.blue, size: 16),
-                      SizedBox(width: 4),
-                      Text('0'),
-                    ],
+                  // Pulsante Commenti
+                  GestureDetector(
+                    onTap: () => _showCommentsDialog(dream),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.comment, color: Colors.blue, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_dreamCommentCounts[dream.id] ?? 0}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Pulsante Preferiti
+                  GestureDetector(
+                    onTap: () => _toggleFavoriteFromCommunity(dream),
+                    child: Icon(
+                      (_userFavoriteDreams[dream.id] ?? false)
+                          ? Icons.bookmark
+                          : Icons.bookmark_border,
+                      color: (_userFavoriteDreams[dream.id] ?? false)
+                          ? Colors.orange
+                          : Colors.grey,
+                      size: 18,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
-                    onPressed: () => _showShareDreamDialog(),
+                    onPressed: () => _shareOtherUserDream(dream),
                     icon: const Icon(Icons.share),
                     iconSize: 20,
                   ),
@@ -370,13 +697,15 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => DreamDetailPage(dream: dream),
             ),
           );
+          // Ricarica i dati sociali quando si torna dalla pagina del sogno
+          _loadSocialData();
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -388,9 +717,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                   Expanded(
                     child: Text(
                       dream.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -404,9 +734,11 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Condiviso',
-                        style: TextStyle(
+                      child: Text(
+                        Localizations.localeOf(context).languageCode == 'en'
+                            ? 'Shared'
+                            : 'Condiviso',
+                        style: const TextStyle(
                           fontSize: 12,
                           color: Colors.green,
                           fontWeight: FontWeight.w500,
@@ -420,7 +752,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 dream.dreamText,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -436,10 +771,25 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
               Row(
                 children: [
                   ElevatedButton.icon(
-                    onPressed: () => _showShareDreamDialog(dream),
-                    icon: const Icon(Icons.share, size: 16),
+                    onPressed: () => dream.isSharedWithCommunity
+                        ? _showUnshareDreamDialog(dream)
+                        : _showShareDreamDialog(dream),
+                    icon: Icon(
+                      dream.isSharedWithCommunity
+                          ? Icons.remove_circle
+                          : Icons.share,
+                      size: 16,
+                    ),
                     label: Text(
-                      dream.isSharedWithCommunity ? 'Condiviso' : 'Condividi',
+                      dream.isSharedWithCommunity
+                          ? (Localizations.localeOf(context).languageCode ==
+                                    'en'
+                                ? 'Unshare'
+                                : 'Rimuovi')
+                          : (Localizations.localeOf(context).languageCode ==
+                                    'en'
+                                ? 'Share'
+                                : 'Condividi'),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: dream.isSharedWithCommunity
@@ -470,29 +820,45 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Condividi Sogno'),
+          title: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Share Dream'
+                : 'Condividi Sogno',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (dream != null) ...[
-                Text('Vuoi condividere "${dream.title}" con la community?'),
+                Text(
+                  Localizations.localeOf(context).languageCode == 'en'
+                      ? 'Do you want to share "${dream.title}" with the community?'
+                      : 'Vuoi condividere "${dream.title}" con la community?',
+                ),
                 const SizedBox(height: 16),
               ] else ...[
-                const Text(
-                  'Per condividere un sogno, selezionane uno dalla lista "I Miei Sogni".',
+                Text(
+                  Localizations.localeOf(context).languageCode == 'en'
+                      ? 'To share a dream, select one from the "My Dreams" list.'
+                      : 'Per condividere un sogno, selezionane uno dalla lista "I Miei Sogni".',
                 ),
                 const SizedBox(height: 16),
               ],
-              const Text(
-                'I sogni condivisi saranno visibili a tutti gli utenti della community.',
-                style: TextStyle(fontSize: 12),
+              Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Shared dreams will be visible to all community users.'
+                    : 'I sogni condivisi saranno visibili a tutti gli utenti della community.',
+                style: const TextStyle(fontSize: 12),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Annulla'),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Cancel'
+                    : 'Annulla',
+              ),
             ),
             if (dream != null)
               ElevatedButton(
@@ -500,8 +866,56 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                   _shareDreamWithCommunity(dream);
                   Navigator.of(context).pop();
                 },
-                child: const Text('Condividi'),
+                child: Text(
+                  Localizations.localeOf(context).languageCode == 'en'
+                      ? 'Share'
+                      : 'Condividi',
+                ),
               ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showUnshareDreamDialog(SavedDream dream) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Unshare Dream'
+                : 'Rimuovi Condivisione',
+          ),
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Do you want to remove "${dream.title}" from the community?'
+                : 'Vuoi rimuovere "${dream.title}" dalla community?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Cancel'
+                    : 'Annulla',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _unshareDreamFromCommunity(dream);
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.withOpacity(0.2),
+              ),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Remove'
+                    : 'Rimuovi',
+              ),
+            ),
           ],
         );
       },
@@ -512,6 +926,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
     try {
       print('Debug: Condivisione sogno ${dream.title}');
 
+      // Usa il metodo specifico per aggiornare solo lo stato di condivisione
+      await _dreamStorage.updateDreamSharingStatus(dream.id, true);
+
+      // Crea la versione aggiornata del sogno per l'UI
       final updatedDream = SavedDream(
         id: dream.id,
         title: dream.title,
@@ -524,19 +942,37 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         isSharedWithCommunity: true,
       );
 
-      await _dreamStorage.saveDream(updatedDream);
-
       setState(() {
-        final index = _userDreams.indexWhere((d) => d.id == dream.id);
-        if (index != -1) {
-          _userDreams[index] = updatedDream;
+        // Aggiorna il sogno nella lista dei sogni utente
+        final userIndex = _userDreams.indexWhere((d) => d.id == dream.id);
+        if (userIndex != -1) {
+          _userDreams[userIndex] = updatedDream;
         }
+
+        // Aggiungi alla community solo se non è già presente
+        final communityIndex = _communityDreams.indexWhere(
+          (d) => d.id == dream.id,
+        );
+        if (communityIndex == -1) {
+          _communityDreams.add(updatedDream);
+          print('Debug: Sogno ${dream.title} aggiunto alla community');
+        } else {
+          _communityDreams[communityIndex] = updatedDream;
+          print('Debug: Sogno ${dream.title} aggiornato nella community');
+        }
+
+        // Riapplica i filtri per aggiornare la lista visualizzata
+        _filterDreams(_searchController.text);
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sogno condiviso con successo!'),
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Dream shared successfully!'
+                  : 'Sogno condiviso con successo!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -545,8 +981,12 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       print('Errore condivisione sogno: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Errore nella condivisione del sogno'),
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Error sharing dream'
+                  : 'Errore nella condivisione del sogno',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -554,18 +994,467 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
     }
   }
 
+  Future<void> _unshareDreamFromCommunity(SavedDream dream) async {
+    try {
+      print('Debug: Rimozione condivisione sogno ${dream.title}');
+
+      // Usa il metodo specifico per aggiornare solo lo stato di condivisione
+      await _dreamStorage.updateDreamSharingStatus(dream.id, false);
+
+      // Crea la versione aggiornata del sogno per l'UI
+      final updatedDream = SavedDream(
+        id: dream.id,
+        title: dream.title,
+        dreamText: dream.dreamText,
+        interpretation: dream.interpretation,
+        createdAt: dream.createdAt,
+        imageUrl: dream.imageUrl,
+        localImagePath: dream.localImagePath,
+        tags: dream.tags,
+        isSharedWithCommunity: false,
+      );
+
+      setState(() {
+        // Aggiorna il sogno nella lista dei sogni utente
+        final userIndex = _userDreams.indexWhere((d) => d.id == dream.id);
+        if (userIndex != -1) {
+          _userDreams[userIndex] = updatedDream;
+          print(
+            'Debug: Sogno ${dream.title} rimosso dalla condivisione nei sogni utente',
+          );
+        }
+
+        // Rimuovi dalla lista dei sogni della community
+        final removedCount = _communityDreams.length;
+        _communityDreams.removeWhere((d) => d.id == dream.id);
+        print(
+          'Debug: Rimossi ${removedCount - _communityDreams.length} sogni dalla community con ID ${dream.id}',
+        );
+
+        // Riapplica i filtri per aggiornare la lista visualizzata
+        _filterDreams(_searchController.text);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Dream removed from community successfully!'
+                  : 'Sogno rimosso dalla community con successo!',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Errore rimozione condivisione sogno: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Error removing dream from community'
+                  : 'Errore nella rimozione del sogno dalla community',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCommentsDialog(SavedDream dream) async {
+    final TextEditingController commentController = TextEditingController();
+
+    // Carica i commenti e i relativi like prima di aprire il dialogo
+    try {
+      final comments = await _socialService.getDreamComments(dream.id);
+      await _loadCommentLikesData(comments);
+
+      // Incrementa il counter per assicurarsi che l'UI sia aggiornata
+      setState(() {
+        _commentsUpdateCounter++;
+      });
+    } catch (e) {
+      print('Errore caricamento dati commenti: $e');
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Comments'
+                    : 'Commenti',
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: Column(
+                  children: [
+                    // Lista commenti caricata dinamicamente
+                    Expanded(
+                      key: ValueKey(_commentsUpdateCounter),
+                      child: FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _socialService.getDreamComments(dream.id),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return Center(child: CircularProgressIndicator());
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                Localizations.localeOf(context).languageCode ==
+                                        'en'
+                                    ? 'Error loading comments'
+                                    : 'Errore caricamento commenti',
+                              ),
+                            );
+                          }
+
+                          final comments = snapshot.data ?? [];
+
+                          if (comments.isEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.all(8),
+                              child: Text(
+                                Localizations.localeOf(context).languageCode ==
+                                        'en'
+                                    ? 'No comments yet. Be the first to comment!'
+                                    : 'Nessun commento ancora. Sii il primo a commentare!',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            itemCount: comments.length,
+                            itemBuilder: (context, index) {
+                              final comment = comments[index];
+                              return GestureDetector(
+                                onLongPress: comment['author'] == 'Tu'
+                                    ? () => _showCommentContextMenu(
+                                        context,
+                                        dream,
+                                        comment,
+                                      )
+                                    : null,
+                                child: Card(
+                                  margin: EdgeInsets.symmetric(vertical: 4),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 16,
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withOpacity(0.1),
+                                              child: Text(
+                                                (comment['author'] ?? 'A')[0],
+                                                style: TextStyle(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              comment['author'] ??
+                                                  (Localizations.localeOf(
+                                                            context,
+                                                          ).languageCode ==
+                                                          'en'
+                                                      ? 'Anonymous'
+                                                      : 'Anonimo'),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                              ),
+                                            ),
+                                            Spacer(),
+                                            Text(
+                                              _formatCommentDate(
+                                                comment['timestamp'],
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withOpacity(0.6),
+                                              ),
+                                            ),
+                                            // Indicatore di commento modificato
+                                            if (comment['edited'] == true) ...[
+                                              SizedBox(width: 4),
+                                              Icon(
+                                                Icons.edit,
+                                                size: 12,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withOpacity(0.4),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          comment['content'] ?? '',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        SizedBox(height: 8),
+                                        // Sezione like del commento
+                                        Row(
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () => _toggleCommentLike(
+                                                comment['id'],
+                                                dream,
+                                                setDialogState,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    (_userLikedComments[comment['id']] ??
+                                                            false)
+                                                        ? Icons.favorite
+                                                        : Icons.favorite_border,
+                                                    color:
+                                                        (_userLikedComments[comment['id']] ??
+                                                            false)
+                                                        ? Colors.red
+                                                        : Colors.grey,
+                                                    size: 14,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    '${_commentLikeCounts[comment['id']] ?? 0}',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Spacer(),
+                                          ],
+                                        ),
+                                        // Hint per il menu contestuale
+                                        if (comment['author'] == 'Tu')
+                                          Padding(
+                                            padding: EdgeInsets.only(top: 6),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.touch_app,
+                                                  size: 12,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                      .withOpacity(0.6),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  Localizations.localeOf(
+                                                            context,
+                                                          ).languageCode ==
+                                                          'en'
+                                                      ? 'Long press for options'
+                                                      : 'Tieni premuto per opzioni',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary
+                                                        .withOpacity(0.6),
+                                                    fontStyle: FontStyle.italic,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    // Campo per nuovo commento
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            decoration: InputDecoration(
+                              hintText:
+                                  Localizations.localeOf(
+                                        context,
+                                      ).languageCode ==
+                                      'en'
+                                  ? 'Write a comment...'
+                                  : 'Scrivi un commento...',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            maxLines: null,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
+                            if (commentController.text.trim().isNotEmpty) {
+                              _addComment(dream, commentController.text.trim());
+                              commentController.clear();
+                            }
+                          },
+                          icon: const Icon(Icons.send),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Close'
+                        : 'Chiudi',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _addComment(SavedDream dream, String commentText) async {
+    try {
+      await _socialService.addComment(dream.id, 'Tu', commentText);
+
+      // Aggiorna il conteggio dei commenti e incrementa il counter
+      final comments = await _socialService.getDreamComments(dream.id);
+      setState(() {
+        _dreamCommentCounts[dream.id] = comments.length;
+        _commentsUpdateCounter++;
+      });
+
+      // Carica i dati dei like per i commenti aggiornati
+      await _loadCommentLikesData(comments);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? '💬 Comment added successfully!'
+                : '💬 Commento aggiunto con successo!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
+      _showCommentsDialog(dream);
+    } catch (e) {
+      print('Errore aggiunta commento: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Error adding comment'
+                : 'Errore nell\'aggiungere il commento',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _removeDuplicatesFromCommunity() {
+    // Rimuove eventuali duplicati basandosi sull'ID del sogno
+    final Map<String, SavedDream> uniqueDreams = {};
+    for (final dream in _communityDreams) {
+      uniqueDreams[dream.id] = dream;
+    }
+    _communityDreams = uniqueDreams.values.toList();
+    print(
+      'Debug: Community dreams dopo rimozione duplicati: ${_communityDreams.length}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community'),
+        title: Text(
+          Localizations.localeOf(context).languageCode == 'en'
+              ? 'Community'
+              : 'Community',
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Esplora', icon: Icon(Icons.explore)),
-            Tab(text: 'I Miei Sogni', icon: Icon(Icons.person)),
-            Tab(text: 'Preferiti', icon: Icon(Icons.favorite)),
+          tabs: [
+            Tab(
+              text: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Explore'
+                  : 'Esplora',
+              icon: const Icon(Icons.explore),
+            ),
+            Tab(
+              text: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'My Dreams'
+                  : 'I Miei Sogni',
+              icon: const Icon(Icons.person),
+            ),
+            Tab(
+              text: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Favorites'
+                  : 'Preferiti',
+              icon: const Icon(Icons.favorite),
+            ),
           ],
         ),
       ),
@@ -652,5 +1541,452 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         ],
       ),
     );
+  }
+
+  // Metodo per condividere sogni di altri utenti tramite link
+  void _shareOtherUserDream(SavedDream dream) {
+    final dreamUrl = 'https://dreamvisualizer.app/dream/${dream.id}';
+    final shareText = Localizations.localeOf(context).languageCode == 'en'
+        ? 'Check out this interesting dream: "${dream.title}"\n\n'
+              '${dream.dreamText}\n\n'
+              'View on DreamVisualizer: $dreamUrl'
+        : 'Guarda questo sogno interessante: "${dream.title}"\n\n'
+              '${dream.dreamText}\n\n'
+              'Visualizza su DreamVisualizer: $dreamUrl';
+
+    Share.share(
+      shareText,
+      subject: Localizations.localeOf(context).languageCode == 'en'
+          ? 'Dream shared from DreamVisualizer'
+          : 'Sogno condiviso da DreamVisualizer',
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          Localizations.localeOf(context).languageCode == 'en'
+              ? '🔗 Dream shared with link!'
+              : '🔗 Sogno condiviso con link!',
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Metodo per gestire i like direttamente dalla community
+  void _toggleLikeFromCommunity(SavedDream dream) async {
+    try {
+      final result = await _socialService.toggleDreamLike(dream.id);
+
+      setState(() {
+        _userLikedDreams[dream.id] = result['isLiked'];
+        _dreamLikeCounts[dream.id] = result['likeCount'];
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['isLiked']
+                ? (Localizations.localeOf(context).languageCode == 'en'
+                      ? '❤️ You like this dream!'
+                      : '❤️ Ti piace questo sogno!')
+                : (Localizations.localeOf(context).languageCode == 'en'
+                      ? '💔 You no longer like this'
+                      : '💔 Non ti piace più'),
+          ),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      print('Errore toggle like: $e');
+    }
+  }
+
+  // Metodo per gestire i preferiti direttamente dalla community
+  void _toggleFavoriteFromCommunity(SavedDream dream) async {
+    try {
+      final isFavorite = await _favoritesService.toggleFavorite(dream);
+
+      setState(() {
+        _userFavoriteDreams[dream.id] = isFavorite;
+      });
+
+      // Ricarica anche la lista dei preferiti
+      _loadFavoriteDreams();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFavorite
+                ? (Localizations.localeOf(context).languageCode == 'en'
+                      ? '⭐ Dream added to favorites!'
+                      : '⭐ Sogno aggiunto ai preferiti!')
+                : (Localizations.localeOf(context).languageCode == 'en'
+                      ? '📝 Dream removed from favorites'
+                      : '📝 Sogno rimosso dai preferiti'),
+          ),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      print('Errore toggle preferiti: $e');
+    }
+  }
+
+  // Metodo per gestire i like dei commenti
+  void _toggleCommentLike(
+    String? commentId,
+    SavedDream dream, [
+    StateSetter? setDialogState,
+  ]) async {
+    if (commentId == null) return;
+
+    try {
+      print('Debug: Toggling like for comment $commentId');
+      print(
+        'Debug: Current state - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
+      );
+
+      final result = await _socialService.toggleCommentLike(commentId);
+
+      print(
+        'Debug: Service result - isLiked: ${result['isLiked']}, likeCount: ${result['likeCount']}',
+      );
+
+      setState(() {
+        _userLikedComments[commentId] = result['isLiked'];
+        _commentLikeCounts[commentId] = result['likeCount'];
+        _commentsUpdateCounter++;
+      });
+
+      // Se siamo nel dialogo, aggiorna anche l'UI del dialogo
+      if (setDialogState != null) {
+        setDialogState(() {
+          // Le mappe sono già aggiornate sopra, questo ricostruisce solo l'UI del dialogo
+        });
+      }
+
+      print(
+        'Debug: New state - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['isLiked']
+                ? (Localizations.localeOf(context).languageCode == 'en'
+                      ? '❤️ You liked this comment!'
+                      : '❤️ Ti piace questo commento!')
+                : (Localizations.localeOf(context).languageCode == 'en'
+                      ? '💔 You no longer like this comment'
+                      : '💔 Non ti piace più questo commento'),
+          ),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // Verifica dopo un breve delay che i valori siano ancora corretti
+      Future.delayed(Duration(milliseconds: 100), () {
+        print(
+          'Debug: Verification - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
+        );
+      });
+    } catch (e) {
+      print('Errore toggle like commento: $e');
+    }
+  }
+
+  // Mostra il menu contestuale per i commenti dell'utente
+  void _showCommentContextMenu(
+    BuildContext context,
+    SavedDream dream,
+    Map<String, dynamic> comment,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext bottomSheetContext) {
+        return Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 20),
+              Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Comment Options'
+                    : 'Opzioni Commento',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 20),
+              ListTile(
+                leading: Icon(Icons.edit, color: Colors.blue),
+                title: Text(
+                  Localizations.localeOf(context).languageCode == 'en'
+                      ? 'Edit Comment'
+                      : 'Modifica Commento',
+                ),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _editComment(dream, comment);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  Localizations.localeOf(context).languageCode == 'en'
+                      ? 'Delete Comment'
+                      : 'Elimina Commento',
+                ),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  _deleteComment(dream, comment['id'], context);
+                },
+              ),
+              SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Metodo per modificare un commento
+  void _editComment(SavedDream dream, Map<String, dynamic> comment) {
+    final TextEditingController editController = TextEditingController(
+      text: comment['content'],
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Edit Comment'
+                : 'Modifica Commento',
+          ),
+          content: TextField(
+            controller: editController,
+            decoration: InputDecoration(
+              hintText: Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Edit your comment...'
+                  : 'Modifica il tuo commento...',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+            maxLength: 500,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Cancel'
+                    : 'Annulla',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newContent = editController.text.trim();
+                if (newContent.isNotEmpty && newContent != comment['content']) {
+                  final success = await _socialService.editComment(
+                    dream.id,
+                    comment['id'],
+                    newContent,
+                  );
+
+                  if (success) {
+                    Navigator.of(context).pop();
+
+                    // Ricarica i commenti e i loro like
+                    final comments = await _socialService.getDreamComments(
+                      dream.id,
+                    );
+                    await _loadCommentLikesData(comments);
+
+                    // Incrementa il counter per forzare l'aggiornamento
+                    setState(() {
+                      _commentsUpdateCounter++;
+                    });
+
+                    // Chiudi il dialog dei commenti e riaprilo per mostrare la lista aggiornata
+                    Navigator.of(context).pop();
+                    _showCommentsDialog(dream);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          Localizations.localeOf(context).languageCode == 'en'
+                              ? '✏️ Comment updated successfully!'
+                              : '✏️ Commento aggiornato con successo!',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          Localizations.localeOf(context).languageCode == 'en'
+                              ? 'Error updating comment'
+                              : 'Errore nell\'aggiornamento del commento',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Save'
+                    : 'Salva',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Metodo per eliminare un commento
+  void _deleteComment(
+    SavedDream dream,
+    String commentId,
+    BuildContext dialogContext,
+  ) async {
+    // Mostra dialog di conferma
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Delete Comment'
+                : 'Elimina Commento',
+          ),
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'en'
+                ? 'Are you sure you want to delete this comment?'
+                : 'Sei sicuro di voler eliminare questo commento?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Cancel'
+                    : 'Annulla',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Delete'
+                    : 'Elimina',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      try {
+        final success = await _socialService.deleteComment(dream.id, commentId);
+
+        if (success) {
+          // Aggiorna il conteggio dei commenti e incrementa il counter
+          final comments = await _socialService.getDreamComments(dream.id);
+          setState(() {
+            _dreamCommentCounts[dream.id] = comments.length;
+            _commentsUpdateCounter++;
+            // Rimuovi i dati del like per il commento eliminato
+            _commentLikeCounts.remove(commentId);
+            _userLikedComments.remove(commentId);
+          });
+
+          // Carica i dati dei like per i commenti rimanenti
+          await _loadCommentLikesData(comments);
+
+          // Chiudi il dialog dei commenti e riaprilo per mostrare la lista aggiornata
+          Navigator.of(dialogContext).pop();
+          _showCommentsDialog(dream);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? '🗑️ Comment deleted successfully!'
+                    : '🗑️ Commento eliminato con successo!',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Error: Comment not found'
+                    : 'Errore: Commento non trovato',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Errore eliminazione commento: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Error deleting comment'
+                  : 'Errore nell\'eliminazione del commento',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Metodo per formattare la data dei commenti
+  String _formatCommentDate(String? timestampString) {
+    if (timestampString == null) return '';
+
+    try {
+      final timestamp = DateTime.parse(timestampString);
+      final now = DateTime.now();
+      final difference = now.difference(timestamp);
+
+      if (difference.inDays > 0) {
+        return '${difference.inDays}g fa';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h fa';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m fa';
+      } else {
+        return 'Ora';
+      }
+    } catch (e) {
+      return '';
+    }
   }
 }

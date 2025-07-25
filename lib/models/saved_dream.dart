@@ -11,6 +11,7 @@ class SavedDream {
   final String title;
   final List<String> tags;
   final bool isSharedWithCommunity; // Nuovo campo per indicare se è condiviso
+  final String language; // Nuovo campo per la lingua
 
   SavedDream({
     required this.id,
@@ -22,6 +23,7 @@ class SavedDream {
     required this.title,
     this.tags = const [],
     this.isSharedWithCommunity = false, // Default: non condiviso
+    this.language = 'italian', // Default: italiano
   });
 
   // Converti in JSON per il salvataggio
@@ -36,6 +38,7 @@ class SavedDream {
       'title': title,
       'tags': tags,
       'isSharedWithCommunity': isSharedWithCommunity,
+      'language': language,
     };
   }
 
@@ -51,6 +54,7 @@ class SavedDream {
       title: json['title'],
       tags: List<String>.from(json['tags'] ?? []),
       isSharedWithCommunity: json['isSharedWithCommunity'] ?? false,
+      language: json['language'] ?? 'italian', // Default se non presente
     );
   }
 
@@ -327,6 +331,34 @@ class SavedDream {
     return tags.take(5).toList();
   }
 
+  // Metodo per rilevare automaticamente la lingua di un testo
+  static String detectLanguage(String text) {
+    final normalizedText = text.toLowerCase();
+
+    // Parole comuni italiane
+    final italianWords = RegExp(
+      r'\b(il|la|di|che|un|una|con|per|del|della|sono|ho|hai|molto|così|più|quando|dove|come|cosa|perché|mentre|dopo|prima|anche|ancora|sempre|mai|già|forse|proprio|tutto|tutti|questa|questo|quello|quella|stesso|stessa|grande|piccolo|nuovo|vecchio|altro|altra|bene|male|meglio|peggio)\b',
+    );
+
+    // Parole comuni inglesi
+    final englishWords = RegExp(
+      r'\b(the|and|of|to|a|in|is|that|for|with|was|had|you|have|are|this|very|more|when|where|how|what|why|while|after|before|also|still|always|never|already|maybe|really|all|everyone|this|that|same|big|small|new|old|other|good|bad|better|worse)\b',
+    );
+
+    final italianMatches = italianWords.allMatches(normalizedText).length;
+    final englishMatches = englishWords.allMatches(normalizedText).length;
+
+    // Se c'è una differenza significativa, restituisci la lingua con più corrispondenze
+    if (italianMatches > englishMatches && italianMatches >= 2) {
+      return 'italian';
+    } else if (englishMatches > italianMatches && englishMatches >= 2) {
+      return 'english';
+    }
+
+    // Default: italiano se non ci sono abbastanza corrispondenze
+    return 'italian';
+  }
+
   // Metodo per creare una copia con stato di condivisione aggiornato
   SavedDream copyWith({
     String? id,
@@ -338,6 +370,7 @@ class SavedDream {
     String? title,
     List<String>? tags,
     bool? isSharedWithCommunity,
+    String? language,
   }) {
     return SavedDream(
       id: id ?? this.id,
@@ -350,6 +383,7 @@ class SavedDream {
       tags: tags ?? this.tags,
       isSharedWithCommunity:
           isSharedWithCommunity ?? this.isSharedWithCommunity,
+      language: language ?? this.language,
     );
   }
 }

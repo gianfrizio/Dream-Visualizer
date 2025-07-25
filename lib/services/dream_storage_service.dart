@@ -7,13 +7,23 @@ class DreamStorageService {
   static const String _dreamsKey = 'saved_dreams';
   final ImageCacheService _imageCacheService = ImageCacheService();
 
-  // Salva un nuovo sogno
+  // Salva un nuovo sogno o aggiorna uno esistente
   Future<void> saveDream(SavedDream dream) async {
     final prefs = await SharedPreferences.getInstance();
     List<SavedDream> dreams = await getSavedDreams();
 
-    // Aggiungi il nuovo sogno all'inizio della lista
-    dreams.insert(0, dream);
+    // Controlla se il sogno esiste già (basandosi sull'ID)
+    final existingIndex = dreams.indexWhere((d) => d.id == dream.id);
+
+    if (existingIndex != -1) {
+      // Aggiorna il sogno esistente
+      dreams[existingIndex] = dream;
+      print('Debug: Sogno ${dream.id} aggiornato');
+    } else {
+      // Aggiungi il nuovo sogno all'inizio della lista
+      dreams.insert(0, dream);
+      print('Debug: Nuovo sogno ${dream.id} aggiunto');
+    }
 
     // Converti la lista in JSON
     List<String> dreamsJson = dreams
@@ -193,5 +203,37 @@ class DreamStorageService {
   Future<List<SavedDream>> getSharedDreams() async {
     List<SavedDream> allDreams = await getSavedDreams();
     return allDreams.where((dream) => dream.isSharedWithCommunity).toList();
+  }
+
+  // Rimuove duplicati basandosi sull'ID del sogno
+  Future<void> removeDuplicates() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<SavedDream> dreams = await getSavedDreams();
+
+    // Crea una mappa per rimuovere duplicati mantenendo solo l'ultima versione
+    final Map<String, SavedDream> uniqueDreams = {};
+
+    // Scandisce dalla fine all'inizio per mantenere le versioni più recenti
+    for (int i = dreams.length - 1; i >= 0; i--) {
+      final dream = dreams[i];
+      if (!uniqueDreams.containsKey(dream.id)) {
+        uniqueDreams[dream.id] = dream;
+      }
+    }
+
+    // Ricostruisce la lista mantenendo l'ordine cronologico
+    final uniqueDreamsList = uniqueDreams.values.toList();
+    uniqueDreamsList.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    print(
+      'Debug: Rimossi ${dreams.length - uniqueDreamsList.length} sogni duplicati',
+    );
+
+    // Salva la lista pulita
+    List<String> dreamsJson = uniqueDreamsList
+        .map((dream) => dream.toJsonString())
+        .toList();
+
+    await prefs.setStringList(_dreamsKey, dreamsJson);
   }
 }

@@ -582,6 +582,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
           interpretation,
           localizations,
         ),
+        language: SavedDream.detectLanguage('$_transcription $interpretation'),
       );
 
       await _storageService.saveDream(dream);
