@@ -1,0 +1,445 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/saved_dream.dart';
+
+class CommunityDream {
+  final String id;
+  final String title;
+  final String dreamText;
+  final String interpretation;
+  final List<String> tags;
+  final DateTime createdAt;
+  final String authorId;
+  final String authorName;
+  final int likes;
+  final int comments;
+  final bool isLikedByUser;
+  final bool isPublic;
+
+  CommunityDream({
+    required this.id,
+    required this.title,
+    required this.dreamText,
+    required this.interpretation,
+    required this.tags,
+    required this.createdAt,
+    required this.authorId,
+    required this.authorName,
+    this.likes = 0,
+    this.comments = 0,
+    this.isLikedByUser = false,
+    this.isPublic = true,
+  });
+
+  factory CommunityDream.fromFirestore(
+    DocumentSnapshot doc,
+    bool isLikedByUser,
+  ) {
+    final data = doc.data() as Map<String, dynamic>;
+    return CommunityDream(
+      id: doc.id,
+      title: data['title'] ?? '',
+      dreamText: data['dreamText'] ?? '',
+      interpretation: data['interpretation'] ?? '',
+      tags: List<String>.from(data['tags'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      authorId: data['authorId'] ?? '',
+      authorName: data['authorName'] ?? 'Anonimo',
+      likes: data['likes'] ?? 0,
+      comments: data['comments'] ?? 0,
+      isLikedByUser: isLikedByUser,
+      isPublic: data['isPublic'] ?? true,
+    );
+  }
+}
+
+class DreamComment {
+  final String id;
+  final String dreamId;
+  final String authorId;
+  final String authorName;
+  final String text;
+  final DateTime createdAt;
+
+  DreamComment({
+    required this.id,
+    required this.dreamId,
+    required this.authorId,
+    required this.authorName,
+    required this.text,
+    required this.createdAt,
+  });
+
+  factory DreamComment.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return DreamComment(
+      id: doc.id,
+      dreamId: data['dreamId'] ?? '',
+      authorId: data['authorId'] ?? '',
+      authorName: data['authorName'] ?? 'Anonimo',
+      text: data['text'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
+  }
+}
+
+class CommunityService extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  bool _isLoading = false;
+  String? _error;
+  List<CommunityDream> _publicDreams = [];
+  Map<String, List<DreamComment>> _dreamComments = {};
+
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  List<CommunityDream> get publicDreams => _publicDreams;
+  bool get isLoggedIn => _auth.currentUser != null;
+  String? get currentUserId => _auth.currentUser?.uid;
+
+  /// Pubblica un sogno nella community
+  Future<bool> publishDream(SavedDream dream, {bool isPublic = true}) async {
+    if (!isLoggedIn) return false;
+
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final user = _auth.currentUser!;
+      final communityDreamData = {
+        'title': dream.title,
+        'dreamText': dream.dreamText,
+        'interpretation': dream.interpretation,
+        'tags': dream.tags,
+        'createdAt': FieldValue.serverTimestamp(),
+        'authorId': user.uid,
+        'authorName':
+            user.displayName ?? user.email?.split('@')[0] ?? 'Anonimo',
+        'likes': 0,
+        'comments': 0,
+        'isPublic': isPublic,
+        'originalDreamId': dream.id,
+      };
+
+      await _firestore.collection('community_dreams').add(communityDreamData);
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Errore nella pubblicazione: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Carica i sogni pubblici dalla community
+  Future<void> loadPublicDreams({int limit = 20}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final querySnapshot = await _firestore
+          .collection('community_dreams')
+          .where('isPublic', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+
+      final currentUserId = _auth.currentUser?.uid;
+      final dreams = <CommunityDream>[];
+
+      for (final doc in querySnapshot.docs) {
+        // Verifica se l'utente ha già messo like
+        bool isLikedByUser = false;
+        if (currentUserId != null) {
+          final likeDoc = await _firestore
+              .collection('community_dreams')
+              .doc(doc.id)
+              .collection('likes')
+              .doc(currentUserId)
+              .get();
+          isLikedByUser = likeDoc.exists;
+        }
+
+        dreams.add(CommunityDream.fromFirestore(doc, isLikedByUser));
+      }
+
+      _publicDreams = dreams;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Errore nel caricamento: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Metti like/rimuovi like da un sogno
+  Future<bool> toggleLike(String dreamId) async {
+    if (!isLoggedIn) return false;
+
+    try {
+      final userId = _auth.currentUser!.uid;
+      final dreamRef = _firestore.collection('community_dreams').doc(dreamId);
+      final likeRef = dreamRef.collection('likes').doc(userId);
+
+      final likeDoc = await likeRef.get();
+
+      if (likeDoc.exists) {
+        // Rimuovi like
+        await likeRef.delete();
+        await dreamRef.update({'likes': FieldValue.increment(-1)});
+
+        // Aggiorna la lista locale
+        final dreamIndex = _publicDreams.indexWhere((d) => d.id == dreamId);
+        if (dreamIndex != -1) {
+          final updatedDream = CommunityDream(
+            id: _publicDreams[dreamIndex].id,
+            title: _publicDreams[dreamIndex].title,
+            dreamText: _publicDreams[dreamIndex].dreamText,
+            interpretation: _publicDreams[dreamIndex].interpretation,
+            tags: _publicDreams[dreamIndex].tags,
+            createdAt: _publicDreams[dreamIndex].createdAt,
+            authorId: _publicDreams[dreamIndex].authorId,
+            authorName: _publicDreams[dreamIndex].authorName,
+            likes: _publicDreams[dreamIndex].likes - 1,
+            comments: _publicDreams[dreamIndex].comments,
+            isLikedByUser: false,
+            isPublic: _publicDreams[dreamIndex].isPublic,
+          );
+          _publicDreams[dreamIndex] = updatedDream;
+        }
+      } else {
+        // Aggiungi like
+        await likeRef.set({'timestamp': FieldValue.serverTimestamp()});
+        await dreamRef.update({'likes': FieldValue.increment(1)});
+
+        // Aggiorna la lista locale
+        final dreamIndex = _publicDreams.indexWhere((d) => d.id == dreamId);
+        if (dreamIndex != -1) {
+          final updatedDream = CommunityDream(
+            id: _publicDreams[dreamIndex].id,
+            title: _publicDreams[dreamIndex].title,
+            dreamText: _publicDreams[dreamIndex].dreamText,
+            interpretation: _publicDreams[dreamIndex].interpretation,
+            tags: _publicDreams[dreamIndex].tags,
+            createdAt: _publicDreams[dreamIndex].createdAt,
+            authorId: _publicDreams[dreamIndex].authorId,
+            authorName: _publicDreams[dreamIndex].authorName,
+            likes: _publicDreams[dreamIndex].likes + 1,
+            comments: _publicDreams[dreamIndex].comments,
+            isLikedByUser: true,
+            isPublic: _publicDreams[dreamIndex].isPublic,
+          );
+          _publicDreams[dreamIndex] = updatedDream;
+        }
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Errore nel like: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Aggiungi un commento a un sogno
+  Future<bool> addComment(String dreamId, String commentText) async {
+    if (!isLoggedIn || commentText.trim().isEmpty) return false;
+
+    try {
+      final user = _auth.currentUser!;
+      final commentData = {
+        'dreamId': dreamId,
+        'authorId': user.uid,
+        'authorName':
+            user.displayName ?? user.email?.split('@')[0] ?? 'Anonimo',
+        'text': commentText.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore
+          .collection('community_dreams')
+          .doc(dreamId)
+          .collection('comments')
+          .add(commentData);
+
+      // Incrementa il contatore dei commenti
+      await _firestore.collection('community_dreams').doc(dreamId).update({
+        'comments': FieldValue.increment(1),
+      });
+
+      // Ricarica i commenti per questo sogno
+      await loadCommentsForDream(dreamId);
+
+      // Aggiorna il contatore nella lista locale
+      final dreamIndex = _publicDreams.indexWhere((d) => d.id == dreamId);
+      if (dreamIndex != -1) {
+        final updatedDream = CommunityDream(
+          id: _publicDreams[dreamIndex].id,
+          title: _publicDreams[dreamIndex].title,
+          dreamText: _publicDreams[dreamIndex].dreamText,
+          interpretation: _publicDreams[dreamIndex].interpretation,
+          tags: _publicDreams[dreamIndex].tags,
+          createdAt: _publicDreams[dreamIndex].createdAt,
+          authorId: _publicDreams[dreamIndex].authorId,
+          authorName: _publicDreams[dreamIndex].authorName,
+          likes: _publicDreams[dreamIndex].likes,
+          comments: _publicDreams[dreamIndex].comments + 1,
+          isLikedByUser: _publicDreams[dreamIndex].isLikedByUser,
+          isPublic: _publicDreams[dreamIndex].isPublic,
+        );
+        _publicDreams[dreamIndex] = updatedDream;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Errore nell\'aggiunta del commento: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Carica i commenti per un sogno specifico
+  Future<void> loadCommentsForDream(String dreamId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('community_dreams')
+          .doc(dreamId)
+          .collection('comments')
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      final comments = querySnapshot.docs
+          .map((doc) => DreamComment.fromFirestore(doc))
+          .toList();
+
+      _dreamComments[dreamId] = comments;
+      notifyListeners();
+    } catch (e) {
+      print('Errore nel caricamento commenti: $e');
+    }
+  }
+
+  /// Ottieni i commenti per un sogno
+  List<DreamComment> getCommentsForDream(String dreamId) {
+    return _dreamComments[dreamId] ?? [];
+  }
+
+  /// Condividi un sogno usando il sistema di condivisione nativo
+  Future<void> shareDream(CommunityDream dream) async {
+    final shareText =
+        '''
+🌙 ${dream.title}
+
+${dream.dreamText}
+
+🔮 Interpretazione:
+${dream.interpretation}
+
+Condiviso da Dream Visualizer
+''';
+
+    await Share.share(shareText, subject: 'Sogno: ${dream.title}');
+  }
+
+  /// Cerca sogni per tag o parole chiave
+  Future<List<CommunityDream>> searchDreams(String query) async {
+    if (query.trim().isEmpty) return [];
+
+    try {
+      // Cerca per tag
+      final tagQuery = await _firestore
+          .collection('community_dreams')
+          .where('isPublic', isEqualTo: true)
+          .where('tags', arrayContains: query.toLowerCase())
+          .limit(10)
+          .get();
+
+      final currentUserId = _auth.currentUser?.uid;
+      final dreams = <CommunityDream>[];
+
+      for (final doc in tagQuery.docs) {
+        bool isLikedByUser = false;
+        if (currentUserId != null) {
+          final likeDoc = await _firestore
+              .collection('community_dreams')
+              .doc(doc.id)
+              .collection('likes')
+              .doc(currentUserId)
+              .get();
+          isLikedByUser = likeDoc.exists;
+        }
+
+        dreams.add(CommunityDream.fromFirestore(doc, isLikedByUser));
+      }
+
+      return dreams;
+    } catch (e) {
+      _error = 'Errore nella ricerca: $e';
+      notifyListeners();
+      return [];
+    }
+  }
+
+  /// Segnala un sogno inappropriato
+  Future<bool> reportDream(String dreamId, String reason) async {
+    if (!isLoggedIn) return false;
+
+    try {
+      final reportData = {
+        'dreamId': dreamId,
+        'reporterId': _auth.currentUser!.uid,
+        'reason': reason,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore.collection('reports').add(reportData);
+      return true;
+    } catch (e) {
+      _error = 'Errore nella segnalazione: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Ottieni i sogni pubblicati dall'utente corrente
+  Future<List<CommunityDream>> getUserPublishedDreams() async {
+    if (!isLoggedIn) return [];
+
+    try {
+      final userId = _auth.currentUser!.uid;
+      final querySnapshot = await _firestore
+          .collection('community_dreams')
+          .where('authorId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final dreams = <CommunityDream>[];
+      for (final doc in querySnapshot.docs) {
+        dreams.add(CommunityDream.fromFirestore(doc, false));
+      }
+
+      return dreams;
+    } catch (e) {
+      _error = 'Errore nel caricamento sogni utente: $e';
+      notifyListeners();
+      return [];
+    }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}
