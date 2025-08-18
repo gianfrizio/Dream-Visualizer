@@ -100,6 +100,10 @@ class TranslationService {
     String fromLang,
     String toLang,
   ) async {
+    // Normalizza i codici lingua per l'API MyMemory
+    fromLang = _normalizeLanguageCode(fromLang);
+    toLang = _normalizeLanguageCode(toLang);
+
     // Se il testo è uguale, non tradurre
     if (fromLang == toLang) return text;
 
@@ -129,6 +133,31 @@ class TranslationService {
     return await _translateSingleText(text, fromLang, toLang);
   }
 
+  // Normalizza i codici lingua per l'API MyMemory
+  static String _normalizeLanguageCode(String langCode) {
+    switch (langCode.toLowerCase()) {
+      case 'auto':
+      case 'it':
+      case 'italian':
+        return 'it';
+      case 'en':
+      case 'english':
+        return 'en';
+      case 'es':
+      case 'spanish':
+        return 'es';
+      case 'fr':
+      case 'french':
+        return 'fr';
+      case 'de':
+      case 'german':
+        return 'de';
+      default:
+        // Se il codice non è riconosciuto, usa 'auto' che MyMemory dovrebbe accettare
+        return 'auto';
+    }
+  }
+
   static Future<String> _translateSingleText(
     String text,
     String fromLang,
@@ -137,19 +166,65 @@ class TranslationService {
     final cacheKey = '${text}_${fromLang}_$toLang';
 
     try {
+      // Normalizza i codici lingua prima di chiamare l'API
+      final normalizedFromLang = _normalizeLanguageCode(fromLang);
+      final normalizedToLang = _normalizeLanguageCode(toLang);
+
+      // Gestione speciale per 'auto' - prova a rilevare automaticamente
+      String apiFromLang = normalizedFromLang;
+      if (normalizedFromLang == 'auto') {
+        // Se è auto, prova prima con l'italiano come default
+        apiFromLang = 'it';
+      }
+
       // Usa l'API di traduzione gratuita MyMemory
       final url = Uri.parse(
-        '$_baseUrl?q=${Uri.encodeComponent(text)}&langpair=$fromLang|$toLang',
+        '$_baseUrl?q=${Uri.encodeComponent(text)}&langpair=$apiFromLang|$normalizedToLang',
       );
+
+      print('Translation URL: $url'); // Debug
+
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
+        // Controlla se la risposta contiene un errore
+        if (data['responseStatus'] != null && data['responseStatus'] != 200) {
+          print('Translation API error: ${data['responseDetails']}');
+          return text;
+        }
+
         final translatedText = data['responseData']['translatedText'] as String;
+
+        // Controlla se la traduzione è identica al testo originale e prova con un'altra lingua
+        if (translatedText.toLowerCase() == text.toLowerCase() &&
+            normalizedFromLang == 'auto') {
+          // Prova con inglese se italiano non ha funzionato
+          final urlEn = Uri.parse(
+            '$_baseUrl?q=${Uri.encodeComponent(text)}&langpair=en|$normalizedToLang',
+          );
+          final responseEn = await http.get(urlEn);
+
+          if (responseEn.statusCode == 200) {
+            final dataEn = json.decode(responseEn.body);
+            if (dataEn['responseStatus'] == null ||
+                dataEn['responseStatus'] == 200) {
+              final translatedTextEn =
+                  dataEn['responseData']['translatedText'] as String;
+              if (translatedTextEn.toLowerCase() != text.toLowerCase()) {
+                _translationCache[cacheKey] = translatedTextEn;
+                return translatedTextEn;
+              }
+            }
+          }
+        }
 
         // Salva nella cache
         _translationCache[cacheKey] = translatedText;
         return translatedText;
+      } else {
+        print('Translation API HTTP error: ${response.statusCode}');
       }
     } catch (e) {
       print('Errore nella traduzione: $e');
@@ -164,6 +239,10 @@ class TranslationService {
     String fromLang,
     String toLang,
   ) async {
+    // Normalizza i codici lingua
+    fromLang = _normalizeLanguageCode(fromLang);
+    toLang = _normalizeLanguageCode(toLang);
+
     // Dividi il testo in frasi o parti più piccole
     final sentences = text
         .split(RegExp(r'[.!?]\s+'))
@@ -378,11 +457,11 @@ class TranslationService {
       'Language detection - Italian score: $italianScore, English score: $englishScore',
     );
 
-    // Se i punteggi sono molto vicini, considera come lingua sconosciuta e prova a tradurre comunque
+    // Se i punteggi sono molto vicini o bassi, usa italiano come default
     if ((italianScore - englishScore).abs() <= 1 &&
         italianScore + englishScore < 3) {
-      print('Language detection uncertain, defaulting to auto-detect');
-      return 'auto'; // Valore speciale per indicare rilevazione incerta
+      print('Language detection uncertain, defaulting to Italian');
+      return 'it'; // Default a italiano invece di 'auto'
     }
 
     return italianScore > englishScore ? 'it' : 'en';
