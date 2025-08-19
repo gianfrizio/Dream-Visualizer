@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'config/api_config.dart';
 
 class OpenAIService {
-  final String apiKey =
-      "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";
+  final String apiKey = ApiConfig.openaiApiKey;
 
   Future<String> interpretDream(
     String dreamText, {

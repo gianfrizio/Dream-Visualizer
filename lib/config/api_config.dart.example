@@ -1,0 +1,15 @@
+// API Configuration Example
+// Copy this file to api_config.dart and add your actual API keys
+
+class ApiConfig {
+  // OpenAI API Configuration
+  static const String openaiApiKey = 'your-openai-api-key-here';
+  
+  // MyMemory Translation API (optional - has free tier)
+  static const String translationApiKey = 'your-translation-api-key-here';
+  
+  // Firebase Configuration is handled in firebase_options.dart
+  
+  // Example:
+  // static const String openaiApiKey = 'sk-proj-your-actual-key-here';
+}

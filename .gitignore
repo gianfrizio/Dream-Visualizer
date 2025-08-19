@@ -11,6 +11,12 @@
 .svn/
 migrate_working_dir/
 
+# API Keys and Sensitive Configuration
+lib/config/api_config.dart
+*.env
+.env*
+api_keys.dart
+
 # Android command line tools
 cmdline-tools.zip
 .svn/
