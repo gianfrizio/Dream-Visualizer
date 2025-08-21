@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
 import 'openai_service.dart';
 import 'models/saved_dream.dart';
@@ -13,13 +12,9 @@ import 'services/theme_service.dart';
 import 'services/image_cache_service.dart';
 import 'services/biometric_auth_service.dart';
 import 'services/encryption_service.dart';
-import 'services/auth_service.dart';
-import 'services/cloud_sync_service.dart';
-import 'services/community_service.dart';
 import 'pages/dream_history_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/dream_analytics_page.dart';
-import 'pages/biometric_auth_page.dart';
 import 'pages/simple_biometric_test_page_new.dart';
 import 'pages/improved_community_page.dart';
 import 'l10n/app_localizations.dart';
@@ -164,7 +159,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
   final DreamStorageService _storageService = DreamStorageService();
   final ImageCacheService _imageCacheService = ImageCacheService();
   final TextEditingController _textController = TextEditingController();
-  bool _isEditingText = false;
   String _confirmedText = '';
   Timer? _watchdogTimer;
   String _lastKnownText = '';
@@ -353,9 +347,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
             _transcription = currentSessionText;
           }
 
-          if (!_isEditingText) {
-            _textController.text = _transcription;
-          }
+          _textController.text = _transcription;
         });
       },
       localeId: widget.languageService.speechLanguageCode,
@@ -378,7 +370,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
 
     _watchdogTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       // Reduced to 3 seconds
-      if (_isListening && !_isEditingText) {
+      if (_isListening) {
         final now = DateTime.now();
         final timeSinceLastUpdate = now.difference(_lastUpdateTime).inSeconds;
 
@@ -446,59 +438,96 @@ class _DreamHomePageState extends State<DreamHomePage> {
     }
 
     // Restart only if we're still listening
-    if (_isListening && !_isEditingText && _speechAvailable) {
+    if (_isListening && _speechAvailable) {
       _lastUpdateTime = DateTime.now();
       _startListening();
     }
   }
 
-  void _continueListening() async {
-    if (!_isListening) {
-      // Save existing text as confirmed only if it hasn't been saved already
-      String tempText = _transcription.trim();
-      if (tempText.isNotEmpty && tempText != _confirmedText) {
-        if (tempText.endsWith(' ')) {
-          _confirmedText = tempText;
-        } else {
-          _confirmedText = tempText + ' ';
-        }
-      }
-
-      _lastKnownText = '';
-      _noChangeCount = 0;
-      _lastUpdateTime = DateTime.now();
-
-      if (!_speechAvailable) {
-        _speechAvailable = await _speech.initialize();
-      }
-
-      if (_speechAvailable) {
-        setState(() => _isListening = true);
-        _startWatchdog();
-        _startListening();
-      }
-    }
+  // Dialog di conferma per cancellazione
+  void _showDeleteConfirmDialog(BuildContext context, AppLocalizations localizations) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Conferma cancellazione',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                localizations.cancel,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _clearAllContent();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Cancella',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void _startTextEditing() {
+  // Funzione per cancellare tutto il contenuto
+  void _clearAllContent() {
     setState(() {
-      _isEditingText = true;
-      _textController.text = _transcription;
+      _isListening = false;
+      _transcription = '';
+      _confirmedText = '';
+      _textController.clear();
+      _interpretation = '';
+      _imageUrl = '';
     });
-  }
-
-  void _saveTextEditing() {
-    setState(() {
-      _isEditingText = false;
-      _transcription = _textController.text;
-    });
-  }
-
-  void _cancelTextEditing() {
-    setState(() {
-      _isEditingText = false;
-      _textController.text = _transcription;
-    });
+    _stopWatchdog();
+    _speech.stop();
   }
 
   void _processDream() async {
@@ -508,8 +537,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
       setState(() {
         _interpretation = localizations.noDreamRecorded;
       });
+      // Non chiudere la tastiera se non c'è testo - l'utente deve scrivere
       return;
     }
+
+    // Chiudi la tastiera solo se c'è del testo da processare
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _interpretation = localizations.analyzingDream;
@@ -613,7 +646,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
     final localizations = AppLocalizations.of(context)!;
 
     return Scaffold(
-      body: Container(
+      body: GestureDetector(
+        onTap: () {
+          // Nasconde la tastiera quando si clicca fuori dal campo di testo
+          FocusScope.of(context).unfocus();
+        },
+        child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -642,118 +680,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 floating: false,
                 pinned: true,
                 backgroundColor: Colors.transparent,
-                actions: [
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const DreamHistoryPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.history),
-                    tooltip: localizations.history,
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'history':
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const DreamHistoryPage(),
-                            ),
-                          );
-                          break;
-                        case 'analytics':
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const DreamAnalyticsPage(),
-                            ),
-                          );
-                          break;
-                        case 'community':
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ImprovedCommunityPage(),
-                            ),
-                          );
-                          break;
-                        case 'language':
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => LanguageSelectionPage(
-                                languageService: widget.languageService,
-                              ),
-                            ),
-                          );
-                          break;
-                        case 'settings':
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => SettingsPage(
-                                themeService: widget.themeService,
-                              ),
-                            ),
-                          );
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'history',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.history),
-                            const SizedBox(width: 8),
-                            Text(localizations.history),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'analytics',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.analytics),
-                            const SizedBox(width: 8),
-                            Text(localizations.analytics),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'community',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.people),
-                            const SizedBox(width: 8),
-                            Text(localizations.community),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'language',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.language),
-                            const SizedBox(width: 8),
-                            Text(localizations.language),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'settings',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.settings),
-                            const SizedBox(width: 8),
-                            Text(localizations.settings),
-                          ],
-                        ),
-                      ),
-                    ],
-                    icon: const Icon(Icons.more_vert),
-                  ),
-                ],
+                actions: [],
                 flexibleSpace: FlexibleSpaceBar(
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -804,16 +731,20 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 padding: const EdgeInsets.all(20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // Voice Recording Card
-                    _buildVoiceRecordingCard(theme, localizations),
-                    const SizedBox(height: 24),
+                    // Status Info Card (solo se sta registrando)
+                    if (_isListening) _buildRecordingStatusCard(theme, localizations),
+                    if (_isListening) const SizedBox(height: 16),
 
-                    // Action Buttons
-                    _buildActionButtons(theme, localizations),
-                    const SizedBox(height: 24),
+                    // Dream Input Area (stile WhatsApp)
+                    _buildDreamInputArea(theme, localizations),
+                    const SizedBox(height: 16),
 
-                    // AI Analysis Buttons
-                    _buildAnalysisButtons(theme, localizations),
+                    // Bottoni principali (sempre visibili)
+                    _buildMainActionButtons(theme, localizations),
+                    const SizedBox(height: 16),
+
+                    // Quick Action Buttons (solo se c'è testo)
+                    _buildQuickActionButtons(theme, localizations),
                     const SizedBox(height: 24),
 
                     // Interpretation Card
@@ -830,524 +761,425 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ],
           ),
         ),
+        ), // Chiusura GestureDetector
       ),
+      floatingActionButton: _buildFloatingActionMenu(theme, localizations),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Widget _buildVoiceRecordingCard(
-    ThemeData theme,
-    AppLocalizations localizations,
-  ) {
-    return Card(
-      elevation: 0,
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: _isListening
-              ? LinearGradient(
-                  colors: [
-                    const Color(0xFFEF4444),
-                    const Color(0xFFF97316),
-                  ], // Rosso-arancione per ascolto
-                )
-              : LinearGradient(
-                  colors: [
-                    const Color(0xFF6366F1),
-                    const Color(0xFF667EEA),
-                  ], // Incrocio tra primary e AI colors
-                ),
-          boxShadow: [
-            BoxShadow(
-              color: (_isListening
-                  ? const Color(0xFFEF4444).withOpacity(0.25)
-                  : const Color(0xFF6366F1).withOpacity(0.25)),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Colors.white.withOpacity(0.1),
-              blurRadius: 1,
-              offset: const Offset(0, 1),
-              spreadRadius: 0,
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              // Status Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isListening
-                          ? const Color(
-                              0xFF1E293B,
-                            ) // Blu scuro elegante che si abbina al tema
-                          : theme.colorScheme.primary,
-                      border: _isListening
-                          ? Border.all(
-                              color: Colors.white.withOpacity(0.8),
-                              width: 2,
-                            )
-                          : null,
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              (_isListening
-                                      ? const Color(0xFF1E293B)
-                                      : theme.colorScheme.primary)
-                                  .withOpacity(0.3),
-                          blurRadius: 12,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      _isListening ? Icons.mic : Icons.mic_off_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isListening
-                            ? localizations.recording
-                            : localizations.tapToRecord,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors
-                              .white, // Testo bianco per il gradiente scuro
-                        ),
-                      ),
-                      Text(
-                        _isListening
-                            ? localizations.speakFreely
-                            : localizations.tapToStart,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(
-                            0.9,
-                          ), // Testo bianco trasparente
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Dream Text Area
-              _isEditingText
-                  ? Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: theme.colorScheme.surface,
-                            border: Border.all(
-                              color: theme.colorScheme.primary.withOpacity(0.3),
-                            ),
-                          ),
-                          child: TextField(
-                            controller: _textController,
-                            maxLines: null,
-                            style: const TextStyle(fontSize: 16),
-                            decoration: InputDecoration(
-                              hintText: localizations.writeDreamHere,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.all(16),
-                              hintStyle: TextStyle(
-                                color: theme.colorScheme.onSurface.withOpacity(
-                                  0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _saveTextEditing,
-                                icon: const Icon(Icons.check_circle_outline),
-                                label: Text(localizations.save),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _cancelTextEditing,
-                                icon: const Icon(Icons.cancel_outlined),
-                                label: Text(localizations.cancel),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.grey[600],
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    )
-                  : GestureDetector(
-                      onTap: _startTextEditing,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: theme.brightness == Brightness.light
-                                ? [
-                                    const Color(
-                                      0xFFF8FAFC,
-                                    ), // Bianco-grigio molto chiaro
-                                    const Color(
-                                      0xFFF1F5F9,
-                                    ), // Grigio più evidente
-                                  ]
-                                : [
-                                    const Color(0xFF1E293B), // Grigio scuro
-                                    const Color(
-                                      0xFF334155,
-                                    ), // Grigio più chiaro per il tema scuro
-                                  ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.primary.withOpacity(
-                                0.08,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                              spreadRadius: 0,
-                            ),
-                            BoxShadow(
-                              color: theme.brightness == Brightness.light
-                                  ? Colors.white.withOpacity(0.8)
-                                  : Colors.black.withOpacity(0.3),
-                              blurRadius: 1,
-                              offset: const Offset(0, 1),
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          _transcription.isEmpty
-                              ? localizations.tapToWriteDream
-                              : _transcription,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _transcription.isNotEmpty
-                                ? theme.colorScheme.onSurface
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-
-              if (_isListening) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          localizations.continuousListening,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(ThemeData theme, AppLocalizations localizations) {
-    return Row(
+  // Floating Action Menu per accesso rapido a funzioni secondarie
+  Widget _buildFloatingActionMenu(ThemeData theme, AppLocalizations localizations) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Container(
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _isListening
-                    ? [Colors.red, Colors.red.shade700]
-                    : [theme.colorScheme.primary, theme.colorScheme.tertiary],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: (_isListening ? Colors.red : theme.colorScheme.primary)
-                      .withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _isEditingText ? null : _listen,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: Icon(
-                _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                size: 24,
-                color: Colors.white,
-              ),
-              label: Text(
-                _isListening
-                    ? localizations.stopRecording
-                    : localizations.recordDream,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
+        // Analytics (cambiato colore)
         Container(
-          height: 60,
-          width: 60,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white.withOpacity(0.9), Colors.grey.shade200],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: IconButton(
-            onPressed: _isEditingText ? null : _startTextEditing,
-            icon: Icon(
-              Icons.edit_rounded,
-              color: theme.colorScheme.primary,
-              size: 24,
-            ),
+          child: FloatingActionButton(
+            heroTag: "analytics",
+            mini: true,
+            backgroundColor: const Color(0xFF0EA5E9), // Azzurro cielo
+            foregroundColor: Colors.white,
+            elevation: 0,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const DreamAnalyticsPage(),
+                ),
+              );
+            },
+            child: const Icon(Icons.analytics_rounded, size: 20),
           ),
         ),
-        if (_transcription.isNotEmpty && !_isListening) ...[
-          const SizedBox(width: 12),
-          Container(
-            height: 60,
-            width: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: IconButton(
-              onPressed: () {
-                setState(() {
-                  _isListening = false;
-                  _transcription = '';
-                  _confirmedText = '';
-                  _textController.clear();
-                  _isEditingText = false;
-                  _interpretation = '';
-                  _imageUrl = '';
-                });
-                _stopWatchdog();
-                _speech.stop();
-              },
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.white,
-                size: 24,
+        const SizedBox(height: 12),
+        
+        // History
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-            ),
+            ],
           ),
-        ],
+          child: FloatingActionButton(
+            heroTag: "history",
+            mini: true,
+            backgroundColor: const Color(0xFF8B5CF6), // Viola
+            foregroundColor: Colors.white,
+            elevation: 0,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const DreamHistoryPage(),
+                ),
+              );
+            },
+            child: const Icon(Icons.history_rounded, size: 20),
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Menu principale (più grande e più visibile)
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: theme.brightness == Brightness.light 
+                    ? Colors.black.withOpacity(0.2)
+                    : Colors.black.withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: FloatingActionButton(
+            heroTag: "main_menu",
+            backgroundColor: theme.brightness == Brightness.light
+                ? theme.colorScheme.primary
+                : theme.colorScheme.primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            onPressed: () {
+              _showOptionsBottomSheet(context, theme, localizations);
+            },
+            child: const Icon(Icons.more_vert_rounded, size: 28),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildAnalysisButtons(
-    ThemeData theme,
-    AppLocalizations localizations,
-  ) {
-    return Column(
-      children: [
-        if (!_isListening && _transcription.isNotEmpty && !_isEditingText) ...[
-          Container(
-            width: double.infinity,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green, Colors.green.shade700],
+  // Bottom Sheet con tutte le opzioni
+  void _showOptionsBottomSheet(BuildContext context, ThemeData theme, AppLocalizations localizations) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outline.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.green.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
-            child: ElevatedButton.icon(
-              onPressed: _continueListening,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(
-                Icons.record_voice_over_rounded,
-                size: 24,
-                color: Colors.white,
-              ),
-              label: Text(
-                localizations.continueTalking,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+            
+            // Language
+            _buildOptionTile(
+              theme,
+              localizations.language,
+              Icons.language_rounded,
+              () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => LanguageSelectionPage(
+                      languageService: widget.languageService,
+                    ),
+                  ),
+                );
+              },
+            ),
+            
+            // Settings
+            _buildOptionTile(
+              theme,
+              localizations.settings,
+              Icons.settings_rounded,
+              () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => SettingsPage(
+                      themeService: widget.themeService,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper per creare tile delle opzioni
+  Widget _buildOptionTile(ThemeData theme, String title, IconData icon, VoidCallback onTap) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: theme.colorScheme.primary, size: 20),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+    );
+  }
+
+  // Widget per status di registrazione (minimalista)
+  Widget _buildRecordingStatusCard(ThemeData theme, AppLocalizations localizations) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEF4444),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.mic,
+            color: const Color(0xFFEF4444),
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              localizations.recording,
+              style: TextStyle(
+                color: const Color(0xFFEF4444),
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          Text(
+            localizations.speakFreely,
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              fontSize: 12,
+            ),
+          ),
         ],
+      ),
+    );
+  }
 
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFF667EEA), const Color(0xFF764BA2)],
+  // Widget principale di input stile WhatsApp
+  Widget _buildDreamInputArea(ThemeData theme, AppLocalizations localizations) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Campo di testo
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(
+                minHeight: 40,
+                maxHeight: 120,
+              ),
+              child: TextField(
+                controller: _textController,
+                maxLines: null,
+                textInputAction: TextInputAction.newline,
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: localizations.writeDreamHere,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+                onChanged: (text) {
+                  setState(() {
+                    _transcription = text;
+                  });
+                },
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // Pulsante microfono/stop
+          GestureDetector(
+            onTap: _listen,
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _isListening
+                      ? [const Color(0xFFEF4444), const Color(0xFFF97316)]
+                      : [theme.colorScheme.primary, theme.colorScheme.secondary],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isListening 
+                        ? const Color(0xFFEF4444) 
+                        : theme.colorScheme.primary).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                _isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // Pulsante cestino (solo se c'è testo e non sta registrando)
+          if (_transcription.trim().isNotEmpty && !_isListening)
+            GestureDetector(
+              onTap: () => _showDeleteConfirmDialog(context, localizations),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF667EEA).withOpacity(0.3),
+                      color: Colors.grey.withOpacity(0.3),
                       blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: ElevatedButton.icon(
-                  onPressed: _processDream,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                  ),
-                  icon: const Icon(
-                    Icons.psychology_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    localizations.interpretWithAI,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.white,
+                  size: 22,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
+
+  // Bottoni principali sempre visibili
+  Widget _buildMainActionButtons(ThemeData theme, AppLocalizations localizations) {
+    return Column(
+      children: [
+        // Pulsante principale: INTERPRETA SOGNO (sempre visibile ma disabilitato se no testo)
+        Container(
+          width: double.infinity,
+          height: 60,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: _transcription.trim().isNotEmpty 
+                  ? [const Color(0xFF667EEA), const Color(0xFF764BA2)]
+                  : [Colors.grey.shade400, Colors.grey.shade500],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: (_transcription.trim().isNotEmpty 
+                    ? const Color(0xFF667EEA) 
+                    : Colors.grey.shade400).withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ElevatedButton.icon(
+            onPressed: _transcription.trim().isNotEmpty ? _processDream : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            icon: const Icon(
+              Icons.psychology_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+            label: Text(
+              localizations.interpretWithAI,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Riga secondaria: Community (sempre visibile) + Cancella (solo se c'è testo)
+        Row(
+          children: [
+            // Community (sempre visibile)
             Expanded(
               child: Container(
-                height: 70,
+                height: 44,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFFFF6B6B), const Color(0xFFFF8E8E)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFFFF6B6B).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF6B6B).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      color: const Color(0xFFFF6B6B).withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
@@ -1363,22 +1195,20 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.people, size: 20, color: Colors.white),
+                  icon: const Icon(Icons.people_rounded, color: Colors.white, size: 18),
                   label: Text(
                     localizations.community,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -1387,6 +1217,17 @@ class _DreamHomePageState extends State<DreamHomePage> {
         ),
       ],
     );
+  }
+
+  // Pulsanti di azione rapida (solo quando c'è testo)
+  Widget _buildQuickActionButtons(ThemeData theme, AppLocalizations localizations) {
+    // Se non c'è testo, non mostrare nulla
+    if (_transcription.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Non mostriamo più nulla qui dato che il cestino è nell'input area
+    return const SizedBox.shrink();
   }
 
   Widget _buildInterpretationCard(
