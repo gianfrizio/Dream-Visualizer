@@ -159,6 +159,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   final DreamStorageService _storageService = DreamStorageService();
   final ImageCacheService _imageCacheService = ImageCacheService();
   final TextEditingController _textController = TextEditingController();
+  final FocusNode _textFieldFocusNode = FocusNode(); // Controllo focus tastiera
   String _confirmedText = '';
   Timer? _watchdogTimer;
   String _lastKnownText = '';
@@ -173,6 +174,17 @@ class _DreamHomePageState extends State<DreamHomePage> {
     _speech = stt.SpeechToText();
     _initSpeech();
     _checkBiometricAuth();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Assicurati che il focus sia rimosso quando si torna da altre pagine
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _textFieldFocusNode.hasFocus) {
+        _textFieldFocusNode.unfocus();
+      }
+    });
   }
 
   void _checkBiometricAuth() async {
@@ -197,6 +209,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   void dispose() {
     _stopWatchdog(); // Cleans up the timer when the app is closed
     _speech.stop();
+    _textFieldFocusNode.dispose(); // Cleanup del FocusNode
     super.dispose();
   }
 
@@ -446,7 +459,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Dialog di conferma per cancellazione
-  void _showDeleteConfirmDialog(BuildContext context, AppLocalizations localizations) {
+  void _showDeleteConfirmDialog(
+    BuildContext context,
+    AppLocalizations localizations,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -464,9 +480,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  _dreamSaved 
-                    ? 'Sogno già salvato' 
-                    : 'Conferma cancellazione',
+                  _dreamSaved ? 'Sogno già salvato' : 'Conferma cancellazione',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -476,22 +490,41 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ],
           ),
           content: Text(
-            _dreamSaved 
-              ? 'Non preoccuparti! Il tuo sogno è già stato salvato nella cronologia. Puoi cancellare il testo dall\'interfaccia senza perdere nulla.'
-              : 'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
+            _dreamSaved
+                ? 'Non preoccuparti! Il tuo sogno è già stato salvato nella cronologia. Puoi cancellare il testo dall\'interfaccia senza perdere nulla.'
+                : 'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
             style: const TextStyle(fontSize: 16),
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                _dreamSaved ? 'Mantieni' : localizations.cancel,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+            // Pulsante Mantieni/Annulla con bordo visibile
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _dreamSaved ? Colors.blue : Colors.grey[400]!,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  _dreamSaved ? 'Mantieni' : localizations.cancel,
+                  style: TextStyle(
+                    color: _dreamSaved ? Colors.blue : Colors.grey[600],
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -548,7 +581,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
     }
 
     // Chiudi la tastiera solo se c'è del testo da processare
-    FocusScope.of(context).unfocus();
+    _textFieldFocusNode.unfocus();
 
     setState(() {
       _interpretation = localizations.analyzingDream;
@@ -660,118 +693,122 @@ class _DreamHomePageState extends State<DreamHomePage> {
       body: GestureDetector(
         onTap: () {
           // Nasconde la tastiera quando si clicca fuori dal campo di testo
-          FocusScope.of(context).unfocus();
+          _textFieldFocusNode.unfocus();
         },
         child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
-                    const Color(0xFFF7F8FC), // Bianco con hint di viola
-                    const Color(
-                      0xFFF0F4FF,
-                    ), // Bianco con tocco di blu molto tenue
-                  ]
-                : [
-                    const Color(0xFF0F172A), // Blu scuro profondo
-                    const Color(0xFF1E293B), // Blu scuro medio
-                    const Color(0xFF334155), // Grigio-blu
-                  ],
-          ),
-        ),
-        child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Modern App Bar
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                backgroundColor: Colors.transparent,
-                actions: [],
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            'assets/icon/app_icon.png',
-                            width: 28,
-                            height: 28,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        localizations.appTitle,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: theme.brightness == Brightness.light
+                  ? [
+                      const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
+                      const Color(0xFFF7F8FC), // Bianco con hint di viola
+                      const Color(
+                        0xFFF0F4FF,
+                      ), // Bianco con tocco di blu molto tenue
+                    ]
+                  : [
+                      const Color(0xFF0F172A), // Blu scuro profondo
+                      const Color(0xFF1E293B), // Blu scuro medio
+                      const Color(0xFF334155), // Grigio-blu
                     ],
-                  ),
-                  centerTitle: true,
-                ),
-              ),
-
-              // Content
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    // Status Info Card (solo se sta registrando)
-                    if (_isListening) _buildRecordingStatusCard(theme, localizations),
-                    if (_isListening) const SizedBox(height: 16),
-
-                    // Dream Input Area (stile WhatsApp)
-                    _buildDreamInputArea(theme, localizations),
-                    const SizedBox(height: 16),
-
-                    // Bottoni principali (sempre visibili)
-                    _buildMainActionButtons(theme, localizations),
-                    const SizedBox(height: 16),
-
-                    // Quick Action Buttons (solo se c'è testo)
-                    _buildQuickActionButtons(theme, localizations),
-                    const SizedBox(height: 24),
-
-                    // Interpretation Card
-                    if (_interpretation.isNotEmpty)
-                      _buildInterpretationCard(theme, localizations),
-                    if (_interpretation.isNotEmpty) const SizedBox(height: 24),
-
-                    // Dream Image Card
-                    if (_imageUrl.isNotEmpty)
-                      _buildDreamImageCard(theme, localizations),
-                  ]),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          child: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                // Modern App Bar
+                SliverAppBar(
+                  expandedHeight: 120,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: Colors.transparent,
+                  actions: [],
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withOpacity(0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.1,
+                                ),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/icon/app_icon.png',
+                              width: 28,
+                              height: 28,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          localizations.appTitle,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    centerTitle: true,
+                  ),
+                ),
+
+                // Content
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // Status Info Card (solo se sta registrando)
+                      if (_isListening)
+                        _buildRecordingStatusCard(theme, localizations),
+                      if (_isListening) const SizedBox(height: 16),
+
+                      // Dream Input Area (stile WhatsApp)
+                      _buildDreamInputArea(theme, localizations),
+                      const SizedBox(height: 16),
+
+                      // Bottoni principali (sempre visibili)
+                      _buildMainActionButtons(theme, localizations),
+                      const SizedBox(height: 16),
+
+                      // Quick Action Buttons (solo se c'è testo)
+                      _buildQuickActionButtons(theme, localizations),
+                      const SizedBox(height: 24),
+
+                      // Interpretation Card
+                      if (_interpretation.isNotEmpty)
+                        _buildInterpretationCard(theme, localizations),
+                      if (_interpretation.isNotEmpty)
+                        const SizedBox(height: 24),
+
+                      // Dream Image Card
+                      if (_imageUrl.isNotEmpty)
+                        _buildDreamImageCard(theme, localizations),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ), // Chiusura GestureDetector
       ),
       floatingActionButton: _buildFloatingActionMenu(theme, localizations),
@@ -780,7 +817,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Floating Action Menu per accesso rapido a funzioni secondarie
-  Widget _buildFloatingActionMenu(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildFloatingActionMenu(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -803,6 +843,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
             foregroundColor: Colors.white,
             elevation: 0,
             onPressed: () {
+              // Rimuovi focus per evitare che la tastiera si riapra
+              _textFieldFocusNode.unfocus();
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const DreamAnalyticsPage(),
@@ -813,7 +855,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // History
         Container(
           decoration: BoxDecoration(
@@ -833,6 +875,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
             foregroundColor: Colors.white,
             elevation: 0,
             onPressed: () {
+              // Rimuovi focus per evitare che la tastiera si riapra
+              _textFieldFocusNode.unfocus();
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const DreamHistoryPage(),
@@ -843,14 +887,14 @@ class _DreamHomePageState extends State<DreamHomePage> {
           ),
         ),
         const SizedBox(height: 16),
-        
+
         // Menu principale (più grande e più visibile)
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: theme.brightness == Brightness.light 
+                color: theme.brightness == Brightness.light
                     ? Colors.black.withOpacity(0.2)
                     : Colors.black.withOpacity(0.4),
                 blurRadius: 12,
@@ -877,7 +921,11 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Bottom Sheet con tutte le opzioni
-  void _showOptionsBottomSheet(BuildContext context, ThemeData theme, AppLocalizations localizations) {
+  void _showOptionsBottomSheet(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -899,7 +947,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             // Language
             _buildOptionTile(
               theme,
@@ -907,6 +955,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
               Icons.language_rounded,
               () {
                 Navigator.pop(context);
+                // Rimuovi focus per evitare che la tastiera si riapra
+                _textFieldFocusNode.unfocus();
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => LanguageSelectionPage(
@@ -916,7 +966,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 );
               },
             ),
-            
+
             // Settings
             _buildOptionTile(
               theme,
@@ -924,11 +974,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
               Icons.settings_rounded,
               () {
                 Navigator.pop(context);
+                // Rimuovi focus per evitare che la tastiera si riapra
+                _textFieldFocusNode.unfocus();
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => SettingsPage(
-                      themeService: widget.themeService,
-                    ),
+                    builder: (context) =>
+                        SettingsPage(themeService: widget.themeService),
                   ),
                 );
               },
@@ -940,7 +991,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Helper per creare tile delle opzioni
-  Widget _buildOptionTile(ThemeData theme, String title, IconData icon, VoidCallback onTap) {
+  Widget _buildOptionTile(
+    ThemeData theme,
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
@@ -958,7 +1014,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Widget per status di registrazione (minimalista)
-  Widget _buildRecordingStatusCard(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildRecordingStatusCard(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -977,11 +1036,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ),
           ),
           const SizedBox(width: 12),
-          Icon(
-            Icons.mic,
-            color: const Color(0xFFEF4444),
-            size: 20,
-          ),
+          Icon(Icons.mic, color: const Color(0xFFEF4444), size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -1012,9 +1067,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1029,13 +1082,14 @@ class _DreamHomePageState extends State<DreamHomePage> {
           // Campo di testo
           Expanded(
             child: Container(
-              constraints: const BoxConstraints(
-                minHeight: 40,
-                maxHeight: 120,
-              ),
+              constraints: const BoxConstraints(minHeight: 40, maxHeight: 120),
               child: TextField(
                 controller: _textController,
+                focusNode:
+                    _textFieldFocusNode, // Controllo focus personalizzato
                 maxLines: null,
+                autofocus:
+                    false, // Evita che si apra automaticamente la tastiera
                 textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontSize: 16),
                 decoration: InputDecoration(
@@ -1057,9 +1111,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
               ),
             ),
           ),
-          
+
           const SizedBox(width: 8),
-          
+
           // Pulsante microfono/stop
           GestureDetector(
             onTap: _listen,
@@ -1070,14 +1124,19 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 gradient: LinearGradient(
                   colors: _isListening
                       ? [const Color(0xFFEF4444), const Color(0xFFF97316)]
-                      : [theme.colorScheme.primary, theme.colorScheme.secondary],
+                      : [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: (_isListening 
-                        ? const Color(0xFFEF4444) 
-                        : theme.colorScheme.primary).withOpacity(0.3),
+                    color:
+                        (_isListening
+                                ? const Color(0xFFEF4444)
+                                : theme.colorScheme.primary)
+                            .withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1090,9 +1149,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
               ),
             ),
           ),
-          
+
           const SizedBox(width: 8),
-          
+
           // Pulsante cestino (solo se c'è testo e non sta registrando)
           if (_transcription.trim().isNotEmpty && !_isListening)
             GestureDetector(
@@ -1124,7 +1183,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Bottoni principali sempre visibili
-  Widget _buildMainActionButtons(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildMainActionButtons(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     return Column(
       children: [
         // Pulsante principale: INTERPRETA SOGNO (sempre visibile ma disabilitato se no testo)
@@ -1133,16 +1195,18 @@ class _DreamHomePageState extends State<DreamHomePage> {
           height: 60,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: _transcription.trim().isNotEmpty 
+              colors: _transcription.trim().isNotEmpty
                   ? [const Color(0xFF667EEA), const Color(0xFF764BA2)]
                   : [Colors.grey.shade400, Colors.grey.shade500],
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: (_transcription.trim().isNotEmpty 
-                    ? const Color(0xFF667EEA) 
-                    : Colors.grey.shade400).withOpacity(0.4),
+                color:
+                    (_transcription.trim().isNotEmpty
+                            ? const Color(0xFF667EEA)
+                            : Colors.grey.shade400)
+                        .withOpacity(0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
                 spreadRadius: 2,
@@ -1173,9 +1237,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Riga secondaria: Community (sempre visibile) + Cancella (solo se c'è testo)
         Row(
           children: [
@@ -1196,6 +1260,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 ),
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    // Rimuovi focus per evitare che la tastiera si riapra
+                    _textFieldFocusNode.unfocus();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -1211,7 +1277,11 @@ class _DreamHomePageState extends State<DreamHomePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.people_rounded, color: Colors.white, size: 18),
+                  icon: const Icon(
+                    Icons.people_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                   label: Text(
                     localizations.community,
                     style: const TextStyle(
@@ -1231,7 +1301,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
   }
 
   // Pulsanti di azione rapida (solo quando c'è testo)
-  Widget _buildQuickActionButtons(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildQuickActionButtons(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     // Se non c'è testo, non mostrare nulla
     if (_transcription.trim().isEmpty) {
       return const SizedBox.shrink();
