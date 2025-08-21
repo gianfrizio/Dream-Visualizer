@@ -287,6 +287,12 @@ class AppLocalizations {
       'resetEmailSent': 'Email di reset inviata',
       'resetEmailError': 'Errore nell\'invio dell\'email',
       'logout': 'Disconnetti',
+      
+      // Dynamic advice messages - Italian
+      'adviceEmptyText': '✍️ Scrivi il tuo sogno nel campo di testo sopra...\n\nPer ottenere un\'interpretazione accurata, descrivi il tuo sogno con almeno qualche dettaglio. Più dettagli fornisci, migliore sarà l\'analisi!',
+      'adviceShortText': '📝 Continua a scrivere...\n\nIl testo è ancora troppo breve per un\'interpretazione accurata. Aggiungi più dettagli del tuo sogno: dove eri, cosa succedeva, come ti sentivi, chi c\'era con te.',
+      'adviceFewWords': '💭 Aggiungi più dettagli...\n\nPer una buona interpretazione servono almeno alcune parole che descrivano il sogno. Racconta cosa hai sognato in modo più dettagliato.',
+      'adviceReadyToInterpret': '✅ Testo pronto per l\'interpretazione!\n\nOra puoi premere "Interpreta sogno" per ottenere un\'analisi dettagliata del tuo sogno.',
     },
     'en': {
       'appTitle': 'Dream Visualizer',
@@ -557,6 +563,12 @@ class AppLocalizations {
       'resetEmailSent': 'Reset email sent',
       'resetEmailError': 'Error sending email',
       'logout': 'Logout',
+      
+      // Dynamic advice messages - English
+      'adviceEmptyText': '✍️ Write your dream in the text field above...\n\nTo get an accurate interpretation, describe your dream with at least some detail. The more details you provide, the better the analysis will be!',
+      'adviceShortText': '📝 Keep writing...\n\nThe text is still too short for an accurate interpretation. Add more details about your dream: where you were, what was happening, how you felt, who was with you.',
+      'adviceFewWords': '💭 Add more details...\n\nFor a good interpretation you need at least a few words describing the dream. Tell what you dreamed in more detail.',
+      'adviceReadyToInterpret': '✅ Text ready for interpretation!\n\nNow you can press "Interpret dream" to get a detailed analysis of your dream.',
     },
   };
 
@@ -832,6 +844,12 @@ class AppLocalizations {
   String get resetEmailSent => translate('resetEmailSent');
   String get resetEmailError => translate('resetEmailError');
   String get logout => translate('logout');
+  
+  // Dynamic advice messages getters
+  String get adviceEmptyText => translate('adviceEmptyText');
+  String get adviceShortText => translate('adviceShortText');
+  String get adviceFewWords => translate('adviceFewWords');
+  String get adviceReadyToInterpret => translate('adviceReadyToInterpret');
 }
 
 class _AppLocalizationsDelegate

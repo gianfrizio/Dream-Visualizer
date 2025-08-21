@@ -153,7 +153,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _transcription = '';
-  String _interpretation = '';
+  String _interpretation = '✍️ Loading...';
   String _imageUrl = '';
   final OpenAIService _openAI = OpenAIService();
   final DreamStorageService _storageService = DreamStorageService();
@@ -183,6 +183,15 @@ class _DreamHomePageState extends State<DreamHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _textFieldFocusNode.hasFocus) {
         _textFieldFocusNode.unfocus();
+      }
+    });
+    
+    // Aggiorna gli advice quando cambiano le dipendenze (inclusa la localizzazione)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _updateInterpretationAdvice();
+        });
       }
     });
   }
@@ -251,7 +260,10 @@ class _DreamHomePageState extends State<DreamHomePage> {
         _startListening();
       }
     } else {
-      setState(() => _isListening = false);
+      setState(() {
+        _isListening = false;
+        _updateInterpretationAdvice(); // Aggiorna i consigli quando si ferma l'ascolto
+      });
       _confirmedText = _transcription.trim(); // Confirm all text
       _stopWatchdog();
       _speech.stop();
@@ -362,6 +374,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
           }
 
           _textController.text = _transcription;
+          _updateInterpretationAdvice(); // Aggiorna i consigli durante il riconoscimento vocale
         });
       },
       localeId: widget.languageService.speechLanguageCode,
@@ -561,7 +574,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
       _transcription = '';
       _confirmedText = '';
       _textController.clear();
-      _interpretation = '';
+      _interpretation =
+          '✍️ Scrivi il tuo sogno nel campo di testo sopra...\n\nPer ottenere un\'interpretazione accurata, descrivi il tuo sogno con almeno qualche dettaglio. Più dettagli fornisci, migliore sarà l\'analisi!';
       _imageUrl = '';
       _dreamSaved = false; // Reset del flag di salvataggio
     });
@@ -569,18 +583,60 @@ class _DreamHomePageState extends State<DreamHomePage> {
     _speech.stop();
   }
 
+  // Helper per controllare se il testo è valido per l'interpretazione
+  bool _isTextValidForInterpretation() {
+    final trimmedText = _transcription.trim();
+    return trimmedText.isNotEmpty && trimmedText.length >= 10;
+  }
+
+  // Aggiorna il messaggio di consiglio in base al contenuto del testo
+  void _updateInterpretationAdvice() {
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) {
+      // Se le localizzazioni non sono ancora disponibili, usa testi di fallback
+      _interpretation = '✍️ Write your dream in the text field above...';
+      return;
+    }
+    
+    final trimmedText = _transcription.trim();
+
+    if (trimmedText.isEmpty) {
+      _interpretation = localizations.adviceEmptyText;
+    } else if (trimmedText.length < 10) {
+      _interpretation = localizations.adviceShortText;
+    } else if (trimmedText.split(' ').length < 3) {
+      _interpretation = localizations.adviceFewWords;
+    } else {
+      _interpretation = localizations.adviceReadyToInterpret;
+    }
+  }
+
   void _processDream() async {
     final localizations = AppLocalizations.of(context)!;
 
-    if (_transcription.isEmpty) {
+    // Controllo più intelligente del contenuto
+    final trimmedText = _transcription.trim();
+
+    if (trimmedText.isEmpty) {
       setState(() {
-        _interpretation = localizations.noDreamRecorded;
+        _interpretation =
+            "⚠️ Non hai ancora scritto nulla!\n\nScrivi il tuo sogno nel campo di testo sopra e poi premi 'Interpreta sogno'.";
       });
       // Non chiudere la tastiera se non c'è testo - l'utente deve scrivere
       return;
     }
 
-    // Chiudi la tastiera solo se c'è del testo da processare
+    // Controlla se il testo è troppo corto per essere un sogno significativo
+    if (trimmedText.length < 10) {
+      setState(() {
+        _interpretation =
+            "📝 Il testo è troppo breve!\n\nPer ottenere un'interpretazione accurata, descrivi il tuo sogno con almeno qualche parola in più. Un sogno ha bisogno di dettagli per essere interpretato correttamente.";
+      });
+      // Non chiudere la tastiera - l'utente deve continuare a scrivere
+      return;
+    }
+
+    // Se arriviamo qui, il testo è valido - chiudi la tastiera
     _textFieldFocusNode.unfocus();
 
     setState(() {
@@ -688,6 +744,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context)!;
+
+    // Forza l'aggiornamento degli advice ogni volta che il build viene chiamato
+    _updateInterpretationAdvice();
 
     return Scaffold(
       body: GestureDetector(
@@ -1106,6 +1165,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 onChanged: (text) {
                   setState(() {
                     _transcription = text;
+                    _updateInterpretationAdvice(); // Aggiorna il messaggio di consiglio
                   });
                 },
               ),
@@ -1195,7 +1255,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
           height: 60,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: _transcription.trim().isNotEmpty
+              colors: _isTextValidForInterpretation()
                   ? [const Color(0xFF667EEA), const Color(0xFF764BA2)]
                   : [Colors.grey.shade400, Colors.grey.shade500],
             ),
@@ -1203,7 +1263,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
             boxShadow: [
               BoxShadow(
                 color:
-                    (_transcription.trim().isNotEmpty
+                    (_isTextValidForInterpretation()
                             ? const Color(0xFF667EEA)
                             : Colors.grey.shade400)
                         .withOpacity(0.4),
@@ -1214,7 +1274,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ],
           ),
           child: ElevatedButton.icon(
-            onPressed: _transcription.trim().isNotEmpty ? _processDream : null,
+            onPressed: _isTextValidForInterpretation() ? _processDream : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
