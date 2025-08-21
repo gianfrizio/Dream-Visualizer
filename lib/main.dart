@@ -165,6 +165,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   int _noChangeCount = 0;
   bool _speechAvailable = false; // New: tracks speech availability
   DateTime _lastUpdateTime = DateTime.now(); // New: tracks last update
+  bool _dreamSaved = false; // Traccia se il sogno corrente è stato salvato
 
   @override
   void initState() {
@@ -456,16 +457,18 @@ class _DreamHomePageState extends State<DreamHomePage> {
           title: Row(
             children: [
               Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange,
+                _dreamSaved ? Icons.check_circle : Icons.warning_amber_rounded,
+                color: _dreamSaved ? Colors.green : Colors.orange,
                 size: 28,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Conferma cancellazione',
+                  _dreamSaved 
+                    ? 'Sogno già salvato' 
+                    : 'Conferma cancellazione',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -473,7 +476,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ],
           ),
           content: Text(
-            'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
+            _dreamSaved 
+              ? 'Non preoccuparti! Il tuo sogno è già stato salvato nella cronologia. Puoi cancellare il testo dall\'interfaccia senza perdere nulla.'
+              : 'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
             style: const TextStyle(fontSize: 16),
           ),
           actions: [
@@ -482,7 +487,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 Navigator.of(context).pop();
               },
               child: Text(
-                localizations.cancel,
+                _dreamSaved ? 'Mantieni' : localizations.cancel,
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 16,
@@ -496,14 +501,14 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 _clearAllContent();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: _dreamSaved ? Colors.blue : Colors.red,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: Text(
-                'Cancella',
+                _dreamSaved ? 'Cancella e inizia nuovo' : 'Cancella',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -525,6 +530,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
       _textController.clear();
       _interpretation = '';
       _imageUrl = '';
+      _dreamSaved = false; // Reset del flag di salvataggio
     });
     _stopWatchdog();
     _speech.stop();
@@ -619,6 +625,11 @@ class _DreamHomePageState extends State<DreamHomePage> {
       );
 
       await _storageService.saveDream(dream);
+
+      // Imposta il flag che indica che il sogno è stato salvato
+      setState(() {
+        _dreamSaved = true;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
