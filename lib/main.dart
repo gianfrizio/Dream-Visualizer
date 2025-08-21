@@ -154,6 +154,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
   bool _isListening = false;
   String _transcription = '';
   String _interpretation = '✍️ Loading...';
+  bool _showingAdvice =
+      true; // Traccia se stiamo mostrando advice o interpretazione
   String _imageUrl = '';
   final OpenAIService _openAI = OpenAIService();
   final DreamStorageService _storageService = DreamStorageService();
@@ -179,13 +181,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Assicurati che il focus sia rimosso quando si torna da altre pagine
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _textFieldFocusNode.hasFocus) {
-        _textFieldFocusNode.unfocus();
-      }
-    });
-    
+
     // Aggiorna gli advice quando cambiano le dipendenze (inclusa la localizzazione)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -493,7 +489,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  _dreamSaved ? 'Sogno già salvato' : 'Conferma cancellazione',
+                  _dreamSaved
+                      ? localizations.dreamAlreadySaved
+                      : localizations.confirmDeletion,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -504,8 +502,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
           ),
           content: Text(
             _dreamSaved
-                ? 'Non preoccuparti! Il tuo sogno è già stato salvato nella cronologia. Puoi cancellare il testo dall\'interfaccia senza perdere nulla.'
-                : 'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
+                ? localizations.dreamSavedMessage
+                : localizations.confirmDeletionMessage,
             style: const TextStyle(fontSize: 16),
           ),
           actions: [
@@ -532,7 +530,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   ),
                 ),
                 child: Text(
-                  _dreamSaved ? 'Mantieni' : localizations.cancel,
+                  _dreamSaved ? localizations.keep : localizations.cancelAction,
                   style: TextStyle(
                     color: _dreamSaved ? Colors.blue : Colors.grey[600],
                     fontSize: 16,
@@ -554,7 +552,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 ),
               ),
               child: Text(
-                _dreamSaved ? 'Cancella e inizia nuovo' : 'Cancella',
+                _dreamSaved
+                    ? localizations.clearAndStartNew
+                    : localizations.clear,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -574,10 +574,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
       _transcription = '';
       _confirmedText = '';
       _textController.clear();
-      _interpretation =
-          '✍️ Scrivi il tuo sogno nel campo di testo sopra...\n\nPer ottenere un\'interpretazione accurata, descrivi il tuo sogno con almeno qualche dettaglio. Più dettagli fornisci, migliore sarà l\'analisi!';
+      _showingAdvice = true; // Torna a mostrare gli advice
       _imageUrl = '';
       _dreamSaved = false; // Reset del flag di salvataggio
+
+      // Aggiorna gli advice con la lingua corretta all'interno del setState
+      _updateInterpretationAdvice();
     });
     _stopWatchdog();
     _speech.stop();
@@ -591,13 +593,16 @@ class _DreamHomePageState extends State<DreamHomePage> {
 
   // Aggiorna il messaggio di consiglio in base al contenuto del testo
   void _updateInterpretationAdvice() {
+    // Solo aggiorna gli advice se non stiamo mostrando un'interpretazione reale
+    if (!_showingAdvice) return;
+
     final localizations = AppLocalizations.of(context);
     if (localizations == null) {
       // Se le localizzazioni non sono ancora disponibili, usa testi di fallback
       _interpretation = '✍️ Write your dream in the text field above...';
       return;
     }
-    
+
     final trimmedText = _transcription.trim();
 
     if (trimmedText.isEmpty) {
@@ -619,6 +624,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
 
     if (trimmedText.isEmpty) {
       setState(() {
+        _showingAdvice = true;
         _interpretation =
             "⚠️ Non hai ancora scritto nulla!\n\nScrivi il tuo sogno nel campo di testo sopra e poi premi 'Interpreta sogno'.";
       });
@@ -629,6 +635,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
     // Controlla se il testo è troppo corto per essere un sogno significativo
     if (trimmedText.length < 10) {
       setState(() {
+        _showingAdvice = true;
         _interpretation =
             "📝 Il testo è troppo breve!\n\nPer ottenere un'interpretazione accurata, descrivi il tuo sogno con almeno qualche parola in più. Un sogno ha bisogno di dettagli per essere interpretato correttamente.";
       });
@@ -640,6 +647,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
     _textFieldFocusNode.unfocus();
 
     setState(() {
+      _showingAdvice = false; // Non stiamo più mostrando advice
       _interpretation = localizations.analyzingDream;
       _imageUrl = "";
     });
@@ -745,9 +753,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context)!;
 
-    // Forza l'aggiornamento degli advice ogni volta che il build viene chiamato
-    _updateInterpretationAdvice();
-
     return Scaffold(
       body: GestureDetector(
         onTap: () {
@@ -775,103 +780,131 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ),
           ),
           child: SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                // Modern App Bar
-                SliverAppBar(
-                  expandedHeight: 120,
-                  floating: false,
-                  pinned: true,
-                  backgroundColor: Colors.transparent,
-                  actions: [],
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: theme.colorScheme.primary.withOpacity(0.3),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.colorScheme.primary.withOpacity(
-                                  0.1,
-                                ),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+            // Assicurati che il contenuto non venga coperto dai controlli di sistema
+            top: true, // Evita la notch/status bar
+            bottom: true, // Evita i tasti di navigazione Android
+            left: true, // Evita i bordi laterali
+            right: true, // Evita i bordi laterali
+            child: Padding(
+              // Padding aggiuntivo per i tasti di navigazione Android
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewPadding.bottom > 0
+                    ? 8.0 // Padding extra se ci sono controlli di sistema
+                    : 0.0,
+              ),
+              child: CustomScrollView(
+                slivers: [
+                  // Modern App Bar
+                  SliverAppBar(
+                    expandedHeight: 120,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: Colors.transparent,
+                    actions: [],
+                    flexibleSpace: FlexibleSpaceBar(
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(
+                                0.15,
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              'assets/icon/app_icon.png',
-                              width: 28,
-                              height: 28,
-                              fit: BoxFit.cover,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.3,
+                                ),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    0.1,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/icon/app_icon.png',
+                                width: 28,
+                                height: 28,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          localizations.appTitle,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(width: 12),
+                          Text(
+                            localizations.appTitle,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      centerTitle: true,
                     ),
-                    centerTitle: true,
                   ),
-                ),
 
-                // Content
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      // Status Info Card (solo se sta registrando)
-                      if (_isListening)
-                        _buildRecordingStatusCard(theme, localizations),
-                      if (_isListening) const SizedBox(height: 16),
+                  // Content
+                  SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        // Status Info Card (solo se sta registrando)
+                        if (_isListening)
+                          _buildRecordingStatusCard(theme, localizations),
+                        if (_isListening) const SizedBox(height: 16),
 
-                      // Dream Input Area (stile WhatsApp)
-                      _buildDreamInputArea(theme, localizations),
-                      const SizedBox(height: 16),
+                        // Dream Input Area (stile WhatsApp)
+                        _buildDreamInputArea(theme, localizations),
+                        const SizedBox(height: 16),
 
-                      // Bottoni principali (sempre visibili)
-                      _buildMainActionButtons(theme, localizations),
-                      const SizedBox(height: 16),
+                        // Bottoni principali (sempre visibili)
+                        _buildMainActionButtons(theme, localizations),
+                        const SizedBox(height: 16),
 
-                      // Quick Action Buttons (solo se c'è testo)
-                      _buildQuickActionButtons(theme, localizations),
-                      const SizedBox(height: 24),
-
-                      // Interpretation Card
-                      if (_interpretation.isNotEmpty)
-                        _buildInterpretationCard(theme, localizations),
-                      if (_interpretation.isNotEmpty)
+                        // Quick Action Buttons (solo se c'è testo)
+                        _buildQuickActionButtons(theme, localizations),
                         const SizedBox(height: 24),
 
-                      // Dream Image Card
-                      if (_imageUrl.isNotEmpty)
-                        _buildDreamImageCard(theme, localizations),
-                    ]),
+                        // Interpretation Card
+                        if (_interpretation.isNotEmpty)
+                          _buildInterpretationCard(theme, localizations),
+                        if (_interpretation.isNotEmpty)
+                          const SizedBox(height: 24),
+
+                        // Dream Image Card
+                        if (_imageUrl.isNotEmpty)
+                          _buildDreamImageCard(theme, localizations),
+                      ]),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ), // Chiusura GestureDetector
+                ],
+              ), // Chiusura CustomScrollView
+            ), // Chiusura Padding
+          ), // Chiusura SafeArea
+        ), // Chiusura Container e GestureDetector
+      ), // Chiusura body
+      floatingActionButton: Align(
+        alignment: Alignment.bottomRight,
+        child: Padding(
+          padding: const EdgeInsets.only(
+            right: 1,
+            bottom: 5,
+          ), // Molto vicino al bordo inferiore
+          child: _buildFloatingActionMenu(theme, localizations),
+        ),
       ),
-      floatingActionButton: _buildFloatingActionMenu(theme, localizations),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      resizeToAvoidBottomInset:
+          false, // Evita che il floating menu si muova con la tastiera
     );
   }
 
@@ -880,103 +913,112 @@ class _DreamHomePageState extends State<DreamHomePage> {
     ThemeData theme,
     AppLocalizations localizations,
   ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Analytics (cambiato colore)
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+    return SafeArea(
+      left: false, // Permette di andare verso il bordo sinistro
+      top: false, // Permette di andare verso l'alto
+      right: false, // Permette di andare verso il bordo destro
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8), // Minimo spazio dal bordo
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Analytics (cambiato colore)
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: FloatingActionButton(
-            heroTag: "analytics",
-            mini: true,
-            backgroundColor: const Color(0xFF0EA5E9), // Azzurro cielo
-            foregroundColor: Colors.white,
-            elevation: 0,
-            onPressed: () {
-              // Rimuovi focus per evitare che la tastiera si riapra
-              _textFieldFocusNode.unfocus();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const DreamAnalyticsPage(),
-                ),
-              );
-            },
-            child: const Icon(Icons.analytics_rounded, size: 20),
-          ),
-        ),
-        const SizedBox(height: 12),
+              child: FloatingActionButton(
+                heroTag: "analytics",
+                mini: true,
+                backgroundColor: const Color(0xFF0EA5E9), // Azzurro cielo
+                foregroundColor: Colors.white,
+                elevation: 0,
+                onPressed: () {
+                  // Rimuovi focus per evitare che la tastiera si riapra
+                  _textFieldFocusNode.unfocus();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const DreamAnalyticsPage(),
+                    ),
+                  );
+                },
+                child: const Icon(Icons.analytics_rounded, size: 20),
+              ),
+            ),
+            const SizedBox(height: 12),
 
-        // History
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+            // History
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: FloatingActionButton(
-            heroTag: "history",
-            mini: true,
-            backgroundColor: const Color(0xFF8B5CF6), // Viola
-            foregroundColor: Colors.white,
-            elevation: 0,
-            onPressed: () {
-              // Rimuovi focus per evitare che la tastiera si riapra
-              _textFieldFocusNode.unfocus();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const DreamHistoryPage(),
-                ),
-              );
-            },
-            child: const Icon(Icons.history_rounded, size: 20),
-          ),
-        ),
-        const SizedBox(height: 16),
+              child: FloatingActionButton(
+                heroTag: "history",
+                mini: true,
+                backgroundColor: const Color(0xFF8B5CF6), // Viola
+                foregroundColor: Colors.white,
+                elevation: 0,
+                onPressed: () {
+                  // Rimuovi focus per evitare che la tastiera si riapra
+                  _textFieldFocusNode.unfocus();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const DreamHistoryPage(),
+                    ),
+                  );
+                },
+                child: const Icon(Icons.history_rounded, size: 20),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-        // Menu principale (più grande e più visibile)
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: theme.brightness == Brightness.light
-                    ? Colors.black.withOpacity(0.2)
-                    : Colors.black.withOpacity(0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-                spreadRadius: 2,
+            // Menu principale (più grande e più visibile)
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.brightness == Brightness.light
+                        ? Colors.black.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: FloatingActionButton(
-            heroTag: "main_menu",
-            backgroundColor: theme.brightness == Brightness.light
-                ? theme.colorScheme.primary
-                : theme.colorScheme.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            onPressed: () {
-              _showOptionsBottomSheet(context, theme, localizations);
-            },
-            child: const Icon(Icons.more_vert_rounded, size: 28),
-          ),
-        ),
-      ],
-    );
+              child: FloatingActionButton(
+                heroTag: "main_menu",
+                mini: true, // Stessa dimensione degli altri
+                backgroundColor: theme.brightness == Brightness.light
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                onPressed: () {
+                  _showOptionsBottomSheet(context, theme, localizations);
+                },
+                child: const Icon(Icons.more_vert_rounded, size: 28),
+              ),
+            ),
+          ],
+        ), // Chiusura Column
+      ), // Chiusura Padding
+    ); // Chiusura SafeArea
   }
 
   // Bottom Sheet con tutte le opzioni
@@ -988,64 +1030,69 @@ class _DreamHomePageState extends State<DreamHomePage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outline.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(
+            bottom: 16,
+          ), // Spazio extra per tasti Android
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
 
-            // Language
-            _buildOptionTile(
-              theme,
-              localizations.language,
-              Icons.language_rounded,
-              () {
-                Navigator.pop(context);
-                // Rimuovi focus per evitare che la tastiera si riapra
-                _textFieldFocusNode.unfocus();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => LanguageSelectionPage(
-                      languageService: widget.languageService,
+              // Language
+              _buildOptionTile(
+                theme,
+                localizations.language,
+                Icons.language_rounded,
+                () {
+                  Navigator.pop(context);
+                  // Rimuovi focus per evitare che la tastiera si riapra
+                  _textFieldFocusNode.unfocus();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => LanguageSelectionPage(
+                        languageService: widget.languageService,
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
 
-            // Settings
-            _buildOptionTile(
-              theme,
-              localizations.settings,
-              Icons.settings_rounded,
-              () {
-                Navigator.pop(context);
-                // Rimuovi focus per evitare che la tastiera si riapra
-                _textFieldFocusNode.unfocus();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SettingsPage(themeService: widget.themeService),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+              // Settings
+              _buildOptionTile(
+                theme,
+                localizations.settings,
+                Icons.settings_rounded,
+                () {
+                  Navigator.pop(context);
+                  // Rimuovi focus per evitare che la tastiera si riapra
+                  _textFieldFocusNode.unfocus();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SettingsPage(themeService: widget.themeService),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ), // Chiusura Container
+      ), // Chiusura SafeArea
     );
   }
 
@@ -1165,6 +1212,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
                 onChanged: (text) {
                   setState(() {
                     _transcription = text;
+                    _showingAdvice =
+                        true; // Torna a mostrare gli advice quando si modifica il testo
                     _updateInterpretationAdvice(); // Aggiorna il messaggio di consiglio
                   });
                 },

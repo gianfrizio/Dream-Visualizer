@@ -287,12 +287,28 @@ class AppLocalizations {
       'resetEmailSent': 'Email di reset inviata',
       'resetEmailError': 'Errore nell\'invio dell\'email',
       'logout': 'Disconnetti',
-      
+
       // Dynamic advice messages - Italian
-      'adviceEmptyText': '✍️ Scrivi il tuo sogno nel campo di testo sopra...\n\nPer ottenere un\'interpretazione accurata, descrivi il tuo sogno con almeno qualche dettaglio. Più dettagli fornisci, migliore sarà l\'analisi!',
-      'adviceShortText': '📝 Continua a scrivere...\n\nIl testo è ancora troppo breve per un\'interpretazione accurata. Aggiungi più dettagli del tuo sogno: dove eri, cosa succedeva, come ti sentivi, chi c\'era con te.',
-      'adviceFewWords': '💭 Aggiungi più dettagli...\n\nPer una buona interpretazione servono almeno alcune parole che descrivano il sogno. Racconta cosa hai sognato in modo più dettagliato.',
-      'adviceReadyToInterpret': '✅ Testo pronto per l\'interpretazione!\n\nOra puoi premere "Interpreta sogno" per ottenere un\'analisi dettagliata del tuo sogno.',
+      'adviceEmptyText':
+          '✍️ Scrivi il tuo sogno nel campo di testo sopra...\n\nPer ottenere un\'interpretazione accurata, descrivi il tuo sogno con almeno qualche dettaglio. Più dettagli fornisci, migliore sarà l\'analisi!',
+      'adviceShortText':
+          '📝 Continua a scrivere...\n\nIl testo è ancora troppo breve per un\'interpretazione accurata. Aggiungi più dettagli del tuo sogno: dove eri, cosa succedeva, come ti sentivi, chi c\'era con te.',
+      'adviceFewWords':
+          '💭 Aggiungi più dettagli...\n\nPer una buona interpretazione servono almeno alcune parole che descrivano il sogno. Racconta cosa hai sognato in modo più dettagliato.',
+      'adviceReadyToInterpret':
+          '✅ Testo pronto per l\'interpretazione!\n\nOra puoi premere "Interpreta sogno" per ottenere un\'analisi dettagliata del tuo sogno.',
+
+      // Delete confirmation dialog - Italian
+      'dreamAlreadySaved': 'Sogno già salvato',
+      'confirmDeletion': 'Conferma cancellazione',
+      'dreamSavedMessage':
+          'Non preoccuparti! Il tuo sogno è già stato salvato nella cronologia. Puoi cancellare il testo dall\'interfaccia senza perdere nulla.',
+      'confirmDeletionMessage':
+          'Sei sicuro di voler cancellare tutto il contenuto scritto? Questa azione non può essere annullata.',
+      'keep': 'Mantieni',
+      'cancelAction': 'Annulla',
+      'clearAndStartNew': 'Cancella e inizia nuovo',
+      'clear': 'Cancella',
     },
     'en': {
       'appTitle': 'Dream Visualizer',
@@ -563,12 +579,28 @@ class AppLocalizations {
       'resetEmailSent': 'Reset email sent',
       'resetEmailError': 'Error sending email',
       'logout': 'Logout',
-      
+
       // Dynamic advice messages - English
-      'adviceEmptyText': '✍️ Write your dream in the text field above...\n\nTo get an accurate interpretation, describe your dream with at least some detail. The more details you provide, the better the analysis will be!',
-      'adviceShortText': '📝 Keep writing...\n\nThe text is still too short for an accurate interpretation. Add more details about your dream: where you were, what was happening, how you felt, who was with you.',
-      'adviceFewWords': '💭 Add more details...\n\nFor a good interpretation you need at least a few words describing the dream. Tell what you dreamed in more detail.',
-      'adviceReadyToInterpret': '✅ Text ready for interpretation!\n\nNow you can press "Interpret dream" to get a detailed analysis of your dream.',
+      'adviceEmptyText':
+          '✍️ Write your dream in the text field above...\n\nTo get an accurate interpretation, describe your dream with at least some detail. The more details you provide, the better the analysis will be!',
+      'adviceShortText':
+          '📝 Keep writing...\n\nThe text is still too short for an accurate interpretation. Add more details about your dream: where you were, what was happening, how you felt, who was with you.',
+      'adviceFewWords':
+          '💭 Add more details...\n\nFor a good interpretation you need at least a few words describing the dream. Tell what you dreamed in more detail.',
+      'adviceReadyToInterpret':
+          '✅ Text ready for interpretation!\n\nNow you can press "Interpret dream" to get a detailed analysis of your dream.',
+
+      // Delete confirmation dialog - English
+      'dreamAlreadySaved': 'Dream Already Saved',
+      'confirmDeletion': 'Confirm Deletion',
+      'dreamSavedMessage':
+          'Don\'t worry! Your dream has already been saved in the history. You can clear the text from the interface without losing anything.',
+      'confirmDeletionMessage':
+          'Are you sure you want to delete all the written content? This action cannot be undone.',
+      'keep': 'Keep',
+      'cancelAction': 'Cancel',
+      'clearAndStartNew': 'Clear and Start New',
+      'clear': 'Clear',
     },
   };
 
@@ -844,12 +876,22 @@ class AppLocalizations {
   String get resetEmailSent => translate('resetEmailSent');
   String get resetEmailError => translate('resetEmailError');
   String get logout => translate('logout');
-  
+
   // Dynamic advice messages getters
   String get adviceEmptyText => translate('adviceEmptyText');
   String get adviceShortText => translate('adviceShortText');
   String get adviceFewWords => translate('adviceFewWords');
   String get adviceReadyToInterpret => translate('adviceReadyToInterpret');
+
+  // Delete confirmation dialog getters
+  String get dreamAlreadySaved => translate('dreamAlreadySaved');
+  String get confirmDeletion => translate('confirmDeletion');
+  String get dreamSavedMessage => translate('dreamSavedMessage');
+  String get confirmDeletionMessage => translate('confirmDeletionMessage');
+  String get keep => translate('keep');
+  String get cancelAction => translate('cancelAction');
+  String get clearAndStartNew => translate('clearAndStartNew');
+  String get clear => translate('clear');
 }
 
 class _AppLocalizationsDelegate
