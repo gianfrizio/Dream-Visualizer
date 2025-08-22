@@ -646,43 +646,69 @@ class _DreamHomePageState extends State<DreamHomePage> {
           child: SafeArea(
             child: Column(
               children: [
-                // Header con logo e titolo
+                // Header con logo e titolo centrati
                 Container(
                   padding: const EdgeInsets.all(20),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.purple.shade600,
-                              Colors.indigo.shade600,
-                            ],
-                          ),
+                          color: theme.brightness == Brightness.dark 
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.purple.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          boxShadow: theme.brightness == Brightness.dark 
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
                         ),
-                        child: const Icon(
-                          Icons.nights_stay_rounded,
-                          color: Colors.white,
-                          size: 28,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/icon/app_icon.png',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      const Expanded(
+                      ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: [
+                            Colors.purple.shade600,
+                            Colors.indigo.shade600,
+                            Colors.blue.shade500,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ).createShader(bounds),
                         child: Text(
                           'Dream Visualizer',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(
+                                offset: const Offset(0, 2),
+                                blurRadius: 4,
+                                color: Colors.purple.withOpacity(0.3),
+                              ),
+                              Shadow(
+                                offset: const Offset(0, 1),
+                                blurRadius: 2,
+                                color: Colors.indigo.withOpacity(0.2),
+                              ),
+                            ],
                           ),
                         ),
                       ),
