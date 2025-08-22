@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/dream_storage_service.dart';
 import '../services/theme_service.dart';
 import '../services/biometric_auth_service.dart';
+import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -72,15 +73,16 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Sezione statistiche
+            // Sezione lingua
             _buildSection(
-              title: localizations.statistics,
+              title: localizations.language,
               children: [
-                _buildStatCard(
-                  icon: Icons.bedtime,
-                  title: localizations.dreamsSaved,
-                  value: '$_dreamsCount',
-                  color: Colors.purple,
+                _buildSettingsTile(
+                  icon: Icons.language_rounded,
+                  title: localizations.changeLanguage,
+                  subtitle: 'Italiano / English',
+                  onTap: () => _showLanguageDialog(localizations),
+                  color: const Color(0xFF6366F1),
                 ),
               ],
             ),
@@ -253,60 +255,6 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: onTap,
         enabled: onTap != null,
         trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: theme.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -526,6 +474,131 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         trailing: Switch(value: value, onChanged: onChanged),
       ),
+    );
+  }
+
+  void _showLanguageDialog(AppLocalizations localizations) {
+    final languageService = Provider.of<LanguageService>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(localizations.languageSelection),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildLanguageOption(
+                '🇮🇹',
+                'Italiano',
+                'it',
+                languageService.currentLanguageCode == 'it',
+                languageService,
+                localizations,
+              ),
+              const SizedBox(height: 8),
+              _buildLanguageOption(
+                '🇺🇸',
+                'English',
+                'en',
+                languageService.currentLanguageCode == 'en',
+                languageService,
+                localizations,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(localizations.close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageOption(
+    String flag,
+    String name,
+    String code,
+    bool isSelected,
+    LanguageService languageService,
+    AppLocalizations localizations,
+  ) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        child: Center(
+          child: Text(flag, style: const TextStyle(fontSize: 20)),
+        ),
+      ),
+      title: Text(
+        name,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : null,
+      onTap: () async {
+        if (!isSelected) {
+          await languageService.changeLanguage(code);
+          
+          if (context.mounted) {
+            Navigator.of(context).pop();
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(localizations.languageChanged),
+                          Text(
+                            localizations.restartForFullEffect,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            
+            // Ricarica la pagina per aggiornare la lingua
+            setState(() {});
+          }
+        }
+      },
     );
   }
 }

@@ -298,6 +298,41 @@ class AppLocalizations {
       'adviceReadyToInterpret':
           '✅ Testo pronto per l\'interpretazione!\n\nOra puoi premere "Interpreta sogno" per ottenere un\'analisi dettagliata del tuo sogno.',
 
+      // Dream interpretation page - Italian
+      'interpretingDream': 'Sto interpretando il tuo sogno...',
+      'generatingImageText': 'Generando immagine del sogno...',
+      'waitingMessage': 'Un momento di pazienza...',
+      'yourDreamTitle': 'Il tuo sogno',
+      'dreamVisualization': 'Visualizzazione del sogno',
+      'imageLoadError': 'Impossibile caricare l\'immagine',
+      'dreamSavedSuccessfully': '✅ Sogno salvato correttamente!',
+      'suggestions': 'Suggerimenti',
+      'profile': 'Profilo',
+      'dreamVisualizerUser': 'Utente Dream Visualizer',
+      'memberSince': 'Membro da Agosto 2025',
+      'changeLanguage': 'Cambia lingua',
+      'languageSelection': 'Selezione Lingua',
+      'about': 'Informazioni',
+      'appVersion': 'Versione App',
+      'aboutAppDescription': 'Dream Visualizer ti aiuta a interpretare e visualizzare i tuoi sogni usando l\'intelligenza artificiale.',
+      
+      // Profile page sections - Italian
+      'personalInfo': 'Informazioni Personali',
+      'editNameEmailDetails': 'Modifica nome, email e altri dettagli',
+      'privacySecurity': 'Privacy e Sicurezza',
+      'managePrivacySettings': 'Gestisci le tue impostazioni di privacy',
+      'notifications': 'Notifiche',
+      'manageNotificationSettings': 'Gestisci le tue notifiche',
+      'aboutApp': 'Info App',
+      'appInfoAndVersion': 'Informazioni sull\'app e versione',
+      
+      // Profile dialog messages - Italian
+      'personalInfoDialog': 'Questa funzionalità sarà disponibile presto per permetterti di modificare le tue informazioni personali.',
+      'privacySettingsDialog': 'Gestisci le tue impostazioni di privacy e sicurezza. Questa funzionalità sarà disponibile presto.',
+      'notificationSettingsTitle': 'Impostazioni Notifiche',
+      'notificationSettingsDialog': 'Personalizza le tue notifiche. Questa funzionalità sarà disponibile presto.',
+      'ok': 'OK',
+
       // Delete confirmation dialog - Italian
       'dreamAlreadySaved': 'Sogno già salvato',
       'confirmDeletion': 'Conferma cancellazione',
@@ -325,7 +360,7 @@ class AppLocalizations {
       'interpretation': 'Interpretation',
       'dreamSaved': 'Dream saved automatically',
       'menu': 'Menu',
-      'history': 'Dream History',
+      'history': 'History',
       'analytics': 'Analytics',
       'settings': 'Settings',
       'themeSettings': 'Theme',
@@ -589,6 +624,41 @@ class AppLocalizations {
           '💭 Add more details...\n\nFor a good interpretation you need at least a few words describing the dream. Tell what you dreamed in more detail.',
       'adviceReadyToInterpret':
           '✅ Text ready for interpretation!\n\nNow you can press "Interpret dream" to get a detailed analysis of your dream.',
+
+      // Dream interpretation page - English
+      'interpretingDream': 'Interpreting your dream...',
+      'generatingImageText': 'Generating dream image...',
+      'waitingMessage': 'Please wait a moment...',
+      'yourDreamTitle': 'Your dream',
+      'dreamVisualization': 'Dream visualization',
+      'imageLoadError': 'Unable to load image',
+      'dreamSavedSuccessfully': '✅ Dream saved successfully!',
+      'suggestions': 'Suggestions',
+      'profile': 'Profile',
+      'dreamVisualizerUser': 'Dream Visualizer User',
+      'memberSince': 'Member since August 2025',
+      'changeLanguage': 'Change language',
+      'languageSelection': 'Language Selection',
+      'about': 'About',
+      'appVersion': 'App Version',
+      'aboutAppDescription': 'Dream Visualizer helps you interpret and visualize your dreams using artificial intelligence.',
+      
+      // Profile page sections - English
+      'personalInfo': 'Personal Information',
+      'editNameEmailDetails': 'Edit name, email and other details',
+      'privacySecurity': 'Privacy & Security',
+      'managePrivacySettings': 'Manage your privacy settings',
+      'notifications': 'Notifications',
+      'manageNotificationSettings': 'Manage your notifications',
+      'aboutApp': 'About App',
+      'appInfoAndVersion': 'App information and version',
+      
+      // Profile dialog messages - English
+      'personalInfoDialog': 'This feature will be available soon to allow you to edit your personal information.',
+      'privacySettingsDialog': 'Manage your privacy and security settings. This feature will be available soon.',
+      'notificationSettingsTitle': 'Notification Settings',
+      'notificationSettingsDialog': 'Customize your notifications. This feature will be available soon.',
+      'ok': 'OK',
 
       // Delete confirmation dialog - English
       'dreamAlreadySaved': 'Dream Already Saved',
@@ -882,6 +952,41 @@ class AppLocalizations {
   String get adviceShortText => translate('adviceShortText');
   String get adviceFewWords => translate('adviceFewWords');
   String get adviceReadyToInterpret => translate('adviceReadyToInterpret');
+
+  // Dream interpretation page getters
+  String get interpretingDream => translate('interpretingDream');
+  String get generatingImageText => translate('generatingImageText');
+  String get waitingMessage => translate('waitingMessage');
+  String get yourDreamTitle => translate('yourDreamTitle');
+  String get dreamVisualization => translate('dreamVisualization');
+  String get imageLoadError => translate('imageLoadError');
+  String get dreamSavedSuccessfully => translate('dreamSavedSuccessfully');
+  String get suggestions => translate('suggestions');
+  String get profile => translate('profile');
+  String get dreamVisualizerUser => translate('dreamVisualizerUser');
+  String get memberSince => translate('memberSince');
+  String get changeLanguage => translate('changeLanguage');
+  String get languageSelection => translate('languageSelection');
+  String get about => translate('about');
+  String get appVersion => translate('appVersion');
+  String get aboutAppDescription => translate('aboutAppDescription');
+
+  // Profile page sections getters
+  String get personalInfo => translate('personalInfo');
+  String get editNameEmailDetails => translate('editNameEmailDetails');
+  String get privacySecurity => translate('privacySecurity');
+  String get managePrivacySettings => translate('managePrivacySettings');
+  String get notifications => translate('notifications');
+  String get manageNotificationSettings => translate('manageNotificationSettings');
+  String get aboutApp => translate('aboutApp');
+  String get appInfoAndVersion => translate('appInfoAndVersion');
+
+  // Profile dialog messages getters
+  String get personalInfoDialog => translate('personalInfoDialog');
+  String get privacySettingsDialog => translate('privacySettingsDialog');
+  String get notificationSettingsTitle => translate('notificationSettingsTitle');
+  String get notificationSettingsDialog => translate('notificationSettingsDialog');
+  String get ok => translate('ok');
 
   // Delete confirmation dialog getters
   String get dreamAlreadySaved => translate('dreamAlreadySaved');
