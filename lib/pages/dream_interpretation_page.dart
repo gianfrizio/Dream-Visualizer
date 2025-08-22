@@ -16,7 +16,8 @@ class DreamInterpretationPage extends StatefulWidget {
   });
 
   @override
-  State<DreamInterpretationPage> createState() => _DreamInterpretationPageState();
+  State<DreamInterpretationPage> createState() =>
+      _DreamInterpretationPageState();
 }
 
 class _DreamInterpretationPageState extends State<DreamInterpretationPage>
@@ -25,46 +26,45 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
   late AnimationController _fadeController;
   late Animation<double> _sleepAnimation;
   late Animation<double> _fadeAnimation;
-  
+
   String _interpretation = '';
   String _imageUrl = '';
   bool _isGeneratingImage = false;
   bool _isComplete = false;
   bool _isSaved = false;
-  
+
   final OpenAIService _openAI = OpenAIService();
 
   @override
   void initState() {
     super.initState();
-    
+
     // Animazione della persona che dorme
     _sleepAnimationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
-    _sleepAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _sleepAnimationController,
-      curve: Curves.easeInOut,
-    ));
-    
+
+    _sleepAnimation = Tween<double>(begin: 0.8, end: 1.1).animate(
+      CurvedAnimation(
+        parent: _sleepAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(_fadeController);
-    
+
     // Avvia l'animazione in loop
     _sleepAnimationController.repeat(reverse: true);
-    
+
     // Inizia l'interpretazione
     _startInterpretation();
   }
@@ -83,7 +83,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
         widget.dreamText,
         language: widget.languageService.currentLocale.languageCode,
       );
-      
+
       setState(() {
         _interpretation = interpretation;
         _isGeneratingImage = true;
@@ -91,20 +91,19 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
 
       // Fase 2: Generazione dell'immagine
       final image = await _openAI.generateDreamImage(widget.dreamText);
-      
+
       setState(() {
         _imageUrl = image;
         _isGeneratingImage = false;
         _isComplete = true;
       });
-      
+
       // Ferma l'animazione del sonno e mostra il risultato
       _sleepAnimationController.stop();
       _fadeController.forward();
-      
+
       // Salva automaticamente il sogno
       await _saveDreamAutomatically(interpretation, image);
-      
     } catch (e) {
       setState(() {
         _interpretation = "Errore durante l'interpretazione: $e";
@@ -115,7 +114,10 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     }
   }
 
-  Future<void> _saveDreamAutomatically(String interpretation, String imageUrl) async {
+  Future<void> _saveDreamAutomatically(
+    String interpretation,
+    String imageUrl,
+  ) async {
     try {
       final dream = SavedDream(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -128,7 +130,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
 
       final storageService = DreamStorageService();
       await storageService.saveDream(dream);
-      
+
       // Aggiorna lo stato per mostrare il messaggio di salvataggio
       if (mounted) {
         setState(() {
@@ -163,24 +165,21 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFF8F9FF),
-                    const Color(0xFFE8EAFF),
-                  ]
-                : [
-                    const Color(0xFF0F172A),
-                    const Color(0xFF1E293B),
-                  ],
+                ? [const Color(0xFFF8F9FF), const Color(0xFFE8EAFF)]
+                : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
           ),
         ),
-        child: _isComplete 
-          ? _buildCompletedInterpretation(theme, localizations)
-          : _buildLoadingAnimation(theme, localizations),
+        child: _isComplete
+            ? _buildCompletedInterpretation(theme, localizations)
+            : _buildLoadingAnimation(theme, localizations),
       ),
     );
   }
 
-  Widget _buildLoadingAnimation(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildLoadingAnimation(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -207,14 +206,14 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
               );
             },
           ),
-          
+
           const SizedBox(height: 40),
-          
+
           // Testo di stato
           Text(
-            _isGeneratingImage 
-              ? localizations.generatingImageText
-              : localizations.interpretingDream,
+            _isGeneratingImage
+                ? localizations.generatingImageText
+                : localizations.interpretingDream,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -222,21 +221,23 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
             ),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Indicatore di caricamento
           SizedBox(
             width: 60,
             height: 60,
             child: CircularProgressIndicator(
               strokeWidth: 4,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Sottotitolo
           Text(
             localizations.waitingMessage,
@@ -250,7 +251,10 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     );
   }
 
-  Widget _buildCompletedInterpretation(ThemeData theme, AppLocalizations localizations) {
+  Widget _buildCompletedInterpretation(
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SingleChildScrollView(
@@ -267,9 +271,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 color: theme.colorScheme.primary,
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Testo del sogno
             Container(
               width: double.infinity,
@@ -290,9 +294,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Interpretazione
             Text(
               localizations.interpretation,
@@ -302,9 +306,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 color: theme.colorScheme.primary,
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -328,11 +332,11 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 ),
               ),
             ),
-            
+
             // Immagine del sogno
             if (_imageUrl.isNotEmpty) ...[
               const SizedBox(height: 32),
-              
+
               Text(
                 localizations.dreamVisualization,
                 style: TextStyle(
@@ -341,9 +345,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                   color: theme.colorScheme.primary,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -369,9 +373,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                           color: theme.colorScheme.surfaceVariant,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
+                        child: const Center(child: CircularProgressIndicator()),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
@@ -406,7 +408,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 ),
               ),
             ],
-            
+
             // Messaggio di salvataggio
             if (_isSaved)
               Container(
@@ -442,7 +444,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                   ],
                 ),
               ),
-            
+
             const SizedBox(height: 40),
           ],
         ),

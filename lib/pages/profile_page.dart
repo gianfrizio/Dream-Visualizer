@@ -4,7 +4,7 @@ import '../services/theme_service.dart';
 
 class ProfilePage extends StatelessWidget {
   final ThemeService? themeService;
-  
+
   const ProfilePage({super.key, this.themeService});
 
   @override
@@ -26,9 +26,9 @@ class ProfilePage extends StatelessWidget {
           children: [
             // Header con avatar e info utente
             _buildUserHeader(theme, localizations),
-            
+
             const SizedBox(height: 20),
-            
+
             // Sezioni del profilo
             _buildProfileSection(
               icon: Icons.person_outline_rounded,
@@ -40,9 +40,9 @@ class ProfilePage extends StatelessWidget {
               },
               theme: theme,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             _buildProfileSection(
               icon: Icons.security_rounded,
               title: localizations.privacySecurity,
@@ -53,9 +53,9 @@ class ProfilePage extends StatelessWidget {
               },
               theme: theme,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             _buildProfileSection(
               icon: Icons.notifications_rounded,
               title: localizations.notifications,
@@ -66,9 +66,9 @@ class ProfilePage extends StatelessWidget {
               },
               theme: theme,
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // About
             _buildAboutSection(theme, localizations),
           ],
@@ -82,10 +82,7 @@ class ProfilePage extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.secondary,
-          ],
+          colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
         ),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -157,11 +154,7 @@ class ProfilePage extends StatelessWidget {
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -199,7 +192,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showPersonalInfoDialog(BuildContext context, ThemeData theme, AppLocalizations localizations) {
+  void _showPersonalInfoDialog(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -215,7 +212,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showPrivacySettings(BuildContext context, ThemeData theme, AppLocalizations localizations) {
+  void _showPrivacySettings(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,7 +232,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showNotificationSettings(BuildContext context, ThemeData theme, AppLocalizations localizations) {
+  void _showNotificationSettings(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations localizations,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

@@ -71,7 +71,7 @@ class DreamApp extends StatelessWidget {
       listenable: Listenable.merge([languageService, themeService]),
       builder: (context, child) {
         return MaterialApp(
-          title: 'Dream Visualizer',
+          title: 'Dreamsy',
           debugShowCheckedModeBanner: false,
           locale: languageService.currentLocale,
           localizationsDelegates: const [
@@ -611,7 +611,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -646,73 +645,48 @@ class _DreamHomePageState extends State<DreamHomePage> {
           child: SafeArea(
             child: Column(
               children: [
-                // Header con logo e titolo centrati
+                // Header con titolo centrato
                 Container(
                   padding: const EdgeInsets.all(20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.dark 
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: theme.brightness == Brightness.dark 
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            'assets/icon/app_icon.png',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ShaderMask(
-                        shaderCallback: (bounds) => LinearGradient(
-                          colors: [
-                            Colors.purple.shade600,
-                            Colors.indigo.shade600,
-                            Colors.blue.shade500,
+                  child: Center(
+                    child: ShaderMask(
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: [
+                          Colors.purple.shade400,
+                          Colors.indigo.shade400,
+                          Colors.blue.shade400,
+                          Colors.purple.shade300,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ).createShader(bounds),
+                      child: Text(
+                        'Dreamsy',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 2.0,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 3),
+                              blurRadius: 6,
+                              color: Colors.black.withOpacity(0.8),
+                            ),
+                            Shadow(
+                              offset: const Offset(0, 0),
+                              blurRadius: 12,
+                              color: Colors.purple.withOpacity(0.6),
+                            ),
+                            Shadow(
+                              offset: const Offset(2, 2),
+                              blurRadius: 3,
+                              color: Colors.white.withOpacity(0.3),
+                            ),
                           ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ).createShader(bounds),
-                        child: Text(
-                          'Dream Visualizer',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(0, 2),
-                                blurRadius: 4,
-                                color: Colors.purple.withOpacity(0.3),
-                              ),
-                              Shadow(
-                                offset: const Offset(0, 1),
-                                blurRadius: 2,
-                                color: Colors.indigo.withOpacity(0.2),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -734,7 +708,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
 
                         // Bottoni principali (sempre visibili)
                         _buildMainActionButtons(theme, localizations),
-                        
+
                         // Spazio flessibile per centrare i suggerimenti
                         Expanded(
                           child: Center(
@@ -759,15 +733,13 @@ class _DreamHomePageState extends State<DreamHomePage> {
         ), // Chiusura Container e GestureDetector
       ), // Chiusura body
       bottomNavigationBar: _buildBottomMenu(theme, localizations),
-      resizeToAvoidBottomInset: false, // Evita che il menu si muova con la tastiera
+      resizeToAvoidBottomInset:
+          false, // Evita che il menu si muova con la tastiera
     );
   }
 
   // Bottom Menu fisso integrato con lo sfondo
-  Widget _buildBottomMenu(
-    ThemeData theme,
-    AppLocalizations localizations,
-  ) {
+  Widget _buildBottomMenu(ThemeData theme, AppLocalizations localizations) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -802,7 +774,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
                     _textFieldFocusNode.unfocus();
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => ProfilePage(themeService: widget.themeService),
+                        builder: (context) =>
+                            ProfilePage(themeService: widget.themeService),
                       ),
                     );
                   },
@@ -845,7 +818,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   theme: theme,
                 ),
               ),
-              
+
               // Analytics
               Expanded(
                 child: _buildBottomMenuItem(
@@ -863,7 +836,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   theme: theme,
                 ),
               ),
-              
+
               // Impostazioni
               Expanded(
                 child: _buildBottomMenuItem(
@@ -874,7 +847,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
                     _textFieldFocusNode.unfocus();
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => SettingsPage(themeService: widget.themeService),
+                        builder: (context) =>
+                            SettingsPage(themeService: widget.themeService),
                       ),
                     );
                   },
@@ -905,11 +879,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: 28,
-            ),
+            Icon(icon, color: color, size: 28),
             const SizedBox(height: 6),
             Text(
               label,
@@ -1132,17 +1102,19 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ],
           ),
           child: ElevatedButton.icon(
-            onPressed: _isTextValidForInterpretation() ? () {
-              // Naviga alla pagina di interpretazione
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => DreamInterpretationPage(
-                    dreamText: _transcription,
-                    languageService: widget.languageService,
-                  ),
-                ),
-              );
-            } : null,
+            onPressed: _isTextValidForInterpretation()
+                ? () {
+                    // Naviga alla pagina di interpretazione
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => DreamInterpretationPage(
+                          dreamText: _transcription,
+                          languageService: widget.languageService,
+                        ),
+                      ),
+                    );
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
@@ -1165,8 +1137,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
             ),
           ),
         ),
-
-
       ],
     );
   }
@@ -1255,8 +1225,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
       ),
     );
   }
-
-
 
   Widget _buildDreamImageCard(ThemeData theme, AppLocalizations localizations) {
     return Card(

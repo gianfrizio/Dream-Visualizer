@@ -478,8 +478,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showLanguageDialog(AppLocalizations localizations) {
-    final languageService = Provider.of<LanguageService>(context, listen: false);
-    
+    final languageService = Provider.of<LanguageService>(
+      context,
+      listen: false,
+    );
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -542,9 +545,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 : Theme.of(context).colorScheme.outline.withOpacity(0.3),
           ),
         ),
-        child: Center(
-          child: Text(flag, style: const TextStyle(fontSize: 20)),
-        ),
+        child: Center(child: Text(flag, style: const TextStyle(fontSize: 20))),
       ),
       title: Text(
         name,
@@ -564,10 +565,10 @@ class _SettingsPageState extends State<SettingsPage> {
       onTap: () async {
         if (!isSelected) {
           await languageService.changeLanguage(code);
-          
+
           if (context.mounted) {
             Navigator.of(context).pop();
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
@@ -593,7 +594,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 duration: const Duration(seconds: 3),
               ),
             );
-            
+
             // Ricarica la pagina per aggiornare la lingua
             setState(() {});
           }

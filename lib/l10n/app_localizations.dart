@@ -15,7 +15,7 @@ class AppLocalizations {
   // Traduzioni per l'app
   static final Map<String, Map<String, String>> _localizedValues = {
     'it': {
-      'appTitle': 'Dream Visualizer',
+      'appTitle': 'Dreamsy',
       'dreamInterpretation': 'Interpretazione dei Sogni',
       'tapToRecord': 'Pronto per registrare',
       'recording': 'Registrazione in corso...',
@@ -314,8 +314,9 @@ class AppLocalizations {
       'languageSelection': 'Selezione Lingua',
       'about': 'Informazioni',
       'appVersion': 'Versione App',
-      'aboutAppDescription': 'Dream Visualizer ti aiuta a interpretare e visualizzare i tuoi sogni usando l\'intelligenza artificiale.',
-      
+      'aboutAppDescription':
+          'Dream Visualizer ti aiuta a interpretare e visualizzare i tuoi sogni usando l\'intelligenza artificiale.',
+
       // Profile page sections - Italian
       'personalInfo': 'Informazioni Personali',
       'editNameEmailDetails': 'Modifica nome, email e altri dettagli',
@@ -325,12 +326,15 @@ class AppLocalizations {
       'manageNotificationSettings': 'Gestisci le tue notifiche',
       'aboutApp': 'Info App',
       'appInfoAndVersion': 'Informazioni sull\'app e versione',
-      
+
       // Profile dialog messages - Italian
-      'personalInfoDialog': 'Questa funzionalità sarà disponibile presto per permetterti di modificare le tue informazioni personali.',
-      'privacySettingsDialog': 'Gestisci le tue impostazioni di privacy e sicurezza. Questa funzionalità sarà disponibile presto.',
+      'personalInfoDialog':
+          'Questa funzionalità sarà disponibile presto per permetterti di modificare le tue informazioni personali.',
+      'privacySettingsDialog':
+          'Gestisci le tue impostazioni di privacy e sicurezza. Questa funzionalità sarà disponibile presto.',
       'notificationSettingsTitle': 'Impostazioni Notifiche',
-      'notificationSettingsDialog': 'Personalizza le tue notifiche. Questa funzionalità sarà disponibile presto.',
+      'notificationSettingsDialog':
+          'Personalizza le tue notifiche. Questa funzionalità sarà disponibile presto.',
       'ok': 'OK',
 
       // Delete confirmation dialog - Italian
@@ -346,7 +350,7 @@ class AppLocalizations {
       'clear': 'Cancella',
     },
     'en': {
-      'appTitle': 'Dream Visualizer',
+      'appTitle': 'Dreamsy',
       'dreamInterpretation': 'Dream Interpretation',
       'tapToRecord': 'Tap to record your dream',
       'recording': 'Recording...',
@@ -641,8 +645,9 @@ class AppLocalizations {
       'languageSelection': 'Language Selection',
       'about': 'About',
       'appVersion': 'App Version',
-      'aboutAppDescription': 'Dream Visualizer helps you interpret and visualize your dreams using artificial intelligence.',
-      
+      'aboutAppDescription':
+          'Dream Visualizer helps you interpret and visualize your dreams using artificial intelligence.',
+
       // Profile page sections - English
       'personalInfo': 'Personal Information',
       'editNameEmailDetails': 'Edit name, email and other details',
@@ -652,12 +657,15 @@ class AppLocalizations {
       'manageNotificationSettings': 'Manage your notifications',
       'aboutApp': 'About App',
       'appInfoAndVersion': 'App information and version',
-      
+
       // Profile dialog messages - English
-      'personalInfoDialog': 'This feature will be available soon to allow you to edit your personal information.',
-      'privacySettingsDialog': 'Manage your privacy and security settings. This feature will be available soon.',
+      'personalInfoDialog':
+          'This feature will be available soon to allow you to edit your personal information.',
+      'privacySettingsDialog':
+          'Manage your privacy and security settings. This feature will be available soon.',
       'notificationSettingsTitle': 'Notification Settings',
-      'notificationSettingsDialog': 'Customize your notifications. This feature will be available soon.',
+      'notificationSettingsDialog':
+          'Customize your notifications. This feature will be available soon.',
       'ok': 'OK',
 
       // Delete confirmation dialog - English
@@ -977,15 +985,18 @@ class AppLocalizations {
   String get privacySecurity => translate('privacySecurity');
   String get managePrivacySettings => translate('managePrivacySettings');
   String get notifications => translate('notifications');
-  String get manageNotificationSettings => translate('manageNotificationSettings');
+  String get manageNotificationSettings =>
+      translate('manageNotificationSettings');
   String get aboutApp => translate('aboutApp');
   String get appInfoAndVersion => translate('appInfoAndVersion');
 
   // Profile dialog messages getters
   String get personalInfoDialog => translate('personalInfoDialog');
   String get privacySettingsDialog => translate('privacySettingsDialog');
-  String get notificationSettingsTitle => translate('notificationSettingsTitle');
-  String get notificationSettingsDialog => translate('notificationSettingsDialog');
+  String get notificationSettingsTitle =>
+      translate('notificationSettingsTitle');
+  String get notificationSettingsDialog =>
+      translate('notificationSettingsDialog');
   String get ok => translate('ok');
 
   // Delete confirmation dialog getters
