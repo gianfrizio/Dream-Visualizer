@@ -302,6 +302,8 @@ class AppLocalizations {
       'interpretingDream': 'Sto interpretando il tuo sogno...',
       'generatingImageText': 'Generando immagine del sogno...',
       'waitingMessage': 'Un momento di pazienza...',
+      'doNotLeaveDuringInterpretation':
+          'Per favore, non chiudere questa pagina o uscire dall\'app finché l\'interpretazione non è completata.',
       'yourDreamTitle': 'Il tuo sogno',
       'dreamVisualization': 'Visualizzazione del sogno',
       'imageLoadError': 'Impossibile caricare l\'immagine',
@@ -633,6 +635,8 @@ class AppLocalizations {
       'interpretingDream': 'Interpreting your dream...',
       'generatingImageText': 'Generating dream image...',
       'waitingMessage': 'Please wait a moment...',
+      'doNotLeaveDuringInterpretation':
+          'Please do not close this page or leave the app until the interpretation is complete.',
       'yourDreamTitle': 'Your dream',
       'dreamVisualization': 'Dream visualization',
       'imageLoadError': 'Unable to load image',
@@ -965,6 +969,8 @@ class AppLocalizations {
   String get interpretingDream => translate('interpretingDream');
   String get generatingImageText => translate('generatingImageText');
   String get waitingMessage => translate('waitingMessage');
+  String get doNotLeaveDuringInterpretation =>
+      translate('doNotLeaveDuringInterpretation');
   String get yourDreamTitle => translate('yourDreamTitle');
   String get dreamVisualization => translate('dreamVisualization');
   String get imageLoadError => translate('imageLoadError');

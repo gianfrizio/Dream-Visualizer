@@ -4,6 +4,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:typed_data';
+import 'dart:math';
 import 'dart:async';
 import 'services/language_service.dart';
 import 'services/theme_service.dart';
@@ -17,6 +19,7 @@ import 'pages/simple_biometric_test_page_new.dart';
 import 'pages/improved_community_page.dart';
 import 'pages/profile_page.dart';
 import 'l10n/app_localizations.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +39,11 @@ void main() async {
   await themeService.initialize();
   await biometricService.initialize();
   await encryptionService.initialize();
+  // Initialize notifications
+  await NotificationService().init();
+  // Note: For Android 13+ you must request POST_NOTIFICATIONS at runtime.
+  // We avoid a global request here; during testing you can call
+  // `permission_handler` to request the permission from the first screen.
 
   runApp(
     MultiProvider(
@@ -147,7 +155,8 @@ class DreamHomePage extends StatefulWidget {
   _DreamHomePageState createState() => _DreamHomePageState();
 }
 
-class _DreamHomePageState extends State<DreamHomePage> {
+class _DreamHomePageState extends State<DreamHomePage>
+    with WidgetsBindingObserver {
   final AudioPlayer _audioPlayer = AudioPlayer();
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -171,6 +180,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    WidgetsBinding.instance.addObserver(this);
     _initSpeech();
     _checkBiometricAuth();
   }
@@ -211,8 +221,20 @@ class _DreamHomePageState extends State<DreamHomePage> {
   void dispose() {
     _stopWatchdog(); // Cleans up the timer when the app is closed
     _speech.stop();
+    WidgetsBinding.instance.removeObserver(this);
     _textFieldFocusNode.dispose(); // Cleanup del FocusNode
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      // Ensure we stop recording when the app is backgrounded or otherwise not active
+      _stopListeningAction();
+    }
   }
 
   void _initSpeech() async {
@@ -242,8 +264,12 @@ class _DreamHomePageState extends State<DreamHomePage> {
       }
 
       if (_speechAvailable) {
-        // Play start sound
-        _audioPlayer.play(AssetSource('audio/mic_start.mp3'));
+        // Haptic feedback + play start sound (synthesized, improved)
+        await HapticFeedback.lightImpact();
+        // Start beep and give it a short moment to play before starting the microphone.
+        // If speech recognition starts immediately it can cut the audio output on some devices.
+        _playStartBeep();
+        await Future.delayed(const Duration(milliseconds: 140));
         setState(() => _isListening = true);
         // DO NOT clear _confirmedText here - keep existing text
         // _confirmedText = '';  // <-- Remove this line
@@ -255,16 +281,27 @@ class _DreamHomePageState extends State<DreamHomePage> {
         _startListening();
       }
     } else {
-      // Play stop sound
-      _audioPlayer.play(AssetSource('audio/mic_stop.mp3'));
-      setState(() {
-        _isListening = false;
-        _updateInterpretationAdvice(); // Aggiorna i consigli quando si ferma l'ascolto
-      });
-      _confirmedText = _transcription.trim(); // Confirm all text
-      _stopWatchdog();
-      _speech.stop();
+      // Stop listening using shared helper (includes haptic)
+      await _stopListeningAction();
     }
+  }
+
+  // Shared helper to stop listening safely (used from lifecycle and navigation)
+  Future<void> _stopListeningAction() async {
+    if (!_isListening) return;
+    try {
+      // Provide tactile feedback for stop
+      await HapticFeedback.mediumImpact();
+    } catch (_) {}
+    setState(() {
+      _isListening = false;
+      _updateInterpretationAdvice();
+    });
+    _confirmedText = _transcription.trim(); // Confirm all text
+    _stopWatchdog();
+    try {
+      await _speech.stop();
+    } catch (_) {}
   }
 
   void _startListening() {
@@ -430,6 +467,91 @@ class _DreamHomePageState extends State<DreamHomePage> {
         }
       }
     });
+  }
+
+  // --- Audio helper: synthesize simple beep WAV in memory and play ---
+  Future<void> _playBeep({
+    double freq = 1000,
+    int ms = 120,
+    double volume = 0.7,
+  }) async {
+    final sampleRate = 22050;
+    final samples = (sampleRate * ms / 1000).round();
+    final bytes = BytesBuilder();
+
+    // WAV header (PCM 16-bit mono)
+    int byteRate = sampleRate * 2;
+    bytes.add(_stringToBytes('RIFF'));
+    bytes.add(_intToBytesLE(36 + samples * 2, 4));
+    bytes.add(_stringToBytes('WAVE'));
+    bytes.add(_stringToBytes('fmt '));
+    bytes.add(_intToBytesLE(16, 4)); // Subchunk1Size
+    bytes.add(_intToBytesLE(1, 2)); // PCM
+    bytes.add(_intToBytesLE(1, 2)); // Mono
+    bytes.add(_intToBytesLE(sampleRate, 4));
+    bytes.add(_intToBytesLE(byteRate, 4));
+    bytes.add(_intToBytesLE(2, 2)); // BlockAlign
+    bytes.add(_intToBytesLE(16, 2)); // BitsPerSample
+    bytes.add(_stringToBytes('data'));
+    bytes.add(_intToBytesLE(samples * 2, 4));
+
+    final rnd = Random();
+    // ADSR envelope params (fractions of duration)
+    final attack = max(1, (0.02 * samples).round());
+    final decay = max(1, (0.05 * samples).round());
+    final release = max(1, (0.08 * samples).round());
+    final sustain = max(0, samples - attack - decay - release);
+    final sustainLevel = 0.7;
+
+    for (int i = 0; i < samples; i++) {
+      final t = i / sampleRate;
+
+      // Envelope
+      double env;
+      if (i < attack) {
+        env = i / attack;
+      } else if (i < attack + decay) {
+        env = 1 - (1 - sustainLevel) * ((i - attack) / decay);
+      } else if (i < attack + decay + sustain) {
+        env = sustainLevel;
+      } else {
+        env = sustainLevel * (1 - ((i - (attack + decay + sustain)) / release));
+      }
+
+      // Harmonic content
+      final fundamental = sin(2 * pi * freq * t);
+      final second = 0.45 * sin(2 * pi * freq * 2 * t);
+      final sub = 0.12 * sin(2 * pi * (freq / 2) * t);
+
+      // Transient noise for attack
+      final noise = (i < attack) ? (rnd.nextDouble() * 2 - 1) * 0.12 : 0.0;
+
+      final sampleVal = (fundamental + second + sub) * env + noise * env;
+      final value = (sampleVal * volume * 32767).clamp(-32767, 32767).toInt();
+      bytes.add(_intToBytesLE(value, 2));
+    }
+
+    final data = bytes.toBytes();
+    try {
+      await _audioPlayer.play(BytesSource(Uint8List.fromList(data)));
+    } catch (e) {
+      // fallback: do nothing
+      print('Errore riproduzione beep: $e');
+    }
+  }
+
+  Future<void> _playStartBeep() async {
+    await _playBeep(freq: 1100, ms: 90, volume: 0.001);
+  }
+
+  List<int> _stringToBytes(String s) => s.codeUnits;
+
+  List<int> _intToBytesLE(int value, int bytes) {
+    final out = <int>[];
+    for (int i = 0; i < bytes; i++) {
+      out.add((value >> (8 * i)) & 0xFF);
+    }
+    return out;
   }
 
   void _stopWatchdog() {
@@ -772,8 +894,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   icon: Icons.person_rounded,
                   label: localizations.profile,
                   color: const Color(0xFFF59E0B),
-                  onTap: () {
+                  onTap: () async {
                     _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) =>
@@ -791,8 +914,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   icon: Icons.history_rounded,
                   label: localizations.history,
                   color: const Color(0xFF8B5CF6),
-                  onTap: () {
+                  onTap: () async {
                     _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const DreamHistoryPage(),
@@ -809,8 +933,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   icon: Icons.people_rounded,
                   label: localizations.community,
                   color: const Color(0xFF10B981),
-                  onTap: () {
+                  onTap: () async {
                     _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const ImprovedCommunityPage(),
@@ -827,8 +952,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   icon: Icons.analytics_rounded,
                   label: localizations.analytics,
                   color: const Color(0xFF0EA5E9),
-                  onTap: () {
+                  onTap: () async {
                     _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const DreamAnalyticsPage(),
@@ -845,8 +971,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
                   icon: Icons.settings_rounded,
                   label: localizations.settings,
                   color: const Color(0xFF6B7280),
-                  onTap: () {
+                  onTap: () async {
                     _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) =>
@@ -1059,6 +1186,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
           child: ElevatedButton.icon(
             onPressed: _isTextValidForInterpretation()
                 ? () async {
+                    // Ensure recording is stopped before navigating
+                    _textFieldFocusNode.unfocus();
+                    await _stopListeningAction();
                     // Naviga alla pagina di interpretazione
                     await Navigator.of(context).push(
                       MaterialPageRoute(
