@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'services/language_service.dart';
 import 'services/theme_service.dart';
@@ -147,6 +148,7 @@ class DreamHomePage extends StatefulWidget {
 }
 
 class _DreamHomePageState extends State<DreamHomePage> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _transcription = '';
@@ -240,6 +242,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
       }
 
       if (_speechAvailable) {
+        // Play start sound
+        _audioPlayer.play(AssetSource('audio/mic_start.mp3'));
         setState(() => _isListening = true);
         // DO NOT clear _confirmedText here - keep existing text
         // _confirmedText = '';  // <-- Remove this line
@@ -251,6 +255,8 @@ class _DreamHomePageState extends State<DreamHomePage> {
         _startListening();
       }
     } else {
+      // Play stop sound
+      _audioPlayer.play(AssetSource('audio/mic_stop.mp3'));
       setState(() {
         _isListening = false;
         _updateInterpretationAdvice(); // Aggiorna i consigli quando si ferma l'ascolto
@@ -663,7 +669,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                       child: Text(
                         'Dreamsy',
                         style: TextStyle(
-                          fontSize: 36,
+                          fontSize: 48,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                           letterSpacing: 2.0,
@@ -696,11 +702,7 @@ class _DreamHomePageState extends State<DreamHomePage> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                     child: Column(
                       children: [
-                        // Status Info Card (solo se sta registrando)
-                        if (_isListening) ...[
-                          _buildRecordingStatusCard(theme, localizations),
-                          const SizedBox(height: 20),
-                        ],
+                        // (RIMOSSO) Status Info Card durante la registrazione
 
                         // Dream Input Area (stile WhatsApp)
                         _buildDreamInputArea(theme, localizations),
@@ -898,53 +900,6 @@ class _DreamHomePageState extends State<DreamHomePage> {
     );
   }
 
-  // Widget per status di registrazione (minimalista)
-  Widget _buildRecordingStatusCard(
-    ThemeData theme,
-    AppLocalizations localizations,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEF4444).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEF4444),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Icon(Icons.mic, color: const Color(0xFFEF4444), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              localizations.recording,
-              style: TextStyle(
-                color: const Color(0xFFEF4444),
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Text(
-            localizations.speakFreely,
-            style: TextStyle(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Widget principale di input stile WhatsApp
   Widget _buildDreamInputArea(ThemeData theme, AppLocalizations localizations) {
     return Container(
@@ -1103,9 +1058,9 @@ class _DreamHomePageState extends State<DreamHomePage> {
           ),
           child: ElevatedButton.icon(
             onPressed: _isTextValidForInterpretation()
-                ? () {
+                ? () async {
                     // Naviga alla pagina di interpretazione
-                    Navigator.of(context).push(
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => DreamInterpretationPage(
                           dreamText: _transcription,
@@ -1113,6 +1068,14 @@ class _DreamHomePageState extends State<DreamHomePage> {
                         ),
                       ),
                     );
+                    // Quando si torna indietro, svuota il campo testo, chiudi la tastiera e aggiorna i suggerimenti
+                    setState(() {
+                      _textController.clear();
+                      _transcription = '';
+                      _showingAdvice = true;
+                      _updateInterpretationAdvice();
+                    });
+                    _textFieldFocusNode.unfocus();
                   }
                 : null,
             style: ElevatedButton.styleFrom(

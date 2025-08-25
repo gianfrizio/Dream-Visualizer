@@ -122,38 +122,181 @@ I sogni sono personali e i loro significati possono variare molto da persona a p
 
   // Wrapper di sicurezza per l'estrazione degli elementi
   Future<String> generateDreamImage(String dreamText) async {
-    try {
-      // Creiamo un prompt più diretto che mantiene fedeltà al testo originale
-      String directPrompt = await createDirectDreamPrompt(dreamText);
+    // Parole vietate che richiedono sempre la riscrittura del prompt
+    final bannedWords = [
+      'uccidere',
+      'ucciso',
+      'uccisione',
+      'morte',
+      'morto',
+      'morti',
+      'assassin',
+      'ammazz',
+      'sangue',
+      'arma',
+      'pistola',
+      'coltello',
+      'fucile',
+      'bomba',
+      'violenza',
+      'violent',
+      'suicid',
+      'impicc',
+      'sparatoria',
+      'strage',
+      'massacro',
+      'decapit',
+      'squart',
+      'stupro',
+      'abuso',
+      'abusi',
+      'abbandono',
+      'autolesion',
+      'autodistr',
+      'autodistruttivo',
+      'rapina',
+      'furto',
+      'omicidio',
+      'homicide',
+      'kill',
+      'murder',
+      'blood',
+      'weapon',
+      'gun',
+      'knife',
+      'shoot',
+      'shooting',
+      'bomb',
+      'rape',
+      'abuse',
+      'suicide',
+      'hang',
+      'massacre',
+      'decapitate',
+      'dismember',
+      'slaughter',
+      'dead',
+      'death',
+      'corpse',
+      'cadavere',
+      'cadaveri',
+      'corpo senza vita',
+      'corpi',
+      'strangol',
+      'strangle',
+      'overdose',
+      'overdosing',
+      'overdosed',
+      'overdose',
+      'poison',
+      'veleno',
+      'velenato',
+      'anneg',
+      'annegato',
+      'annegare',
+      'drown',
+      'drowned',
+      'drowning',
+    ];
+    final lowerText = dreamText.toLowerCase();
+    final containsBanned = bannedWords.any((w) => lowerText.contains(w));
+    String prompt;
+    if (containsBanned) {
+      // Prompt sempre riscritto da GPT in chiave simbolica/oscura
+      prompt = await _makePromptSafeWithGPT(dreamText);
+    } else {
+      prompt =
+          "$dreamText, dreamlike atmosphere, surreal art style, high quality digital art";
+    }
 
-      final response = await http.post(
-        Uri.parse("https://api.openai.com/v1/images/generations"),
-        headers: {
-          "Authorization": "Bearer $apiKey",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "model": "dall-e-3",
-          "prompt": directPrompt.length > 1000
-              ? directPrompt.substring(0, 1000)
-              : directPrompt,
-          "n": 1,
-          "size": "1024x1024",
-          "quality": "standard",
-          "style": "vivid",
-        }),
+    final dallEUri = Uri.parse("https://api.openai.com/v1/images/generations");
+    final headers = {
+      "Authorization": "Bearer $apiKey",
+      "Content-Type": "application/json",
+    };
+    final body = jsonEncode({
+      "model": "dall-e-3",
+      "prompt": prompt.length > 1000 ? prompt.substring(0, 1000) : prompt,
+      "n": 1,
+      "size": "1024x1024",
+      "quality": "standard",
+      "style": "vivid",
+    });
+
+    final response = await http.post(dallEUri, headers: headers, body: body);
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      return decoded['data'][0]['url'];
+    }
+
+    // 2. Se fallisce per policy (contenuto violento ecc.), riformula con GPT e riprova
+    if (response.statusCode == 400 &&
+        response.body.contains('content policy')) {
+      // Chiedi a GPT di "ripulire" il prompt
+      String safePrompt = await _makePromptSafeWithGPT(dreamText);
+      final safeBody = jsonEncode({
+        "model": "dall-e-3",
+        "prompt": safePrompt.length > 1000
+            ? safePrompt.substring(0, 1000)
+            : safePrompt,
+        "n": 1,
+        "size": "1024x1024",
+        "quality": "standard",
+        "style": "vivid",
+      });
+      final safeResponse = await http.post(
+        dallEUri,
+        headers: headers,
+        body: safeBody,
       );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+      if (safeResponse.statusCode == 200) {
+        final decoded = jsonDecode(safeResponse.body);
         return decoded['data'][0]['url'];
       } else {
         throw Exception(
-          'Errore API DALL-E: ${response.statusCode} - ${response.body}',
+          'Immagine bloccata per policy. Nessuna immagine generata.',
         );
       }
-    } catch (e) {
-      throw Exception('Errore nella generazione immagine: $e');
+    }
+
+    // 3. Altri errori
+    throw Exception(
+      'Errore nella generazione immagine: ${response.statusCode} - ${response.body}',
+    );
+  }
+
+  // Usa GPT per "ripulire" il prompt e renderlo accettabile per DALL-E
+  Future<String> _makePromptSafeWithGPT(String dreamText) async {
+    final response = await http.post(
+      Uri.parse("https://api.openai.com/v1/chat/completions"),
+      headers: {
+        "Authorization": "Bearer $apiKey",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "model": "gpt-4-turbo",
+        "messages": [
+          {
+            "role": "system",
+            "content":
+                "Sei un assistente che trasforma descrizioni di sogni in prompt visivi per DALL-E. Se il sogno contiene elementi violenti, espliciti, illegali, discriminatori o non conformi alle content policy di OpenAI, devi rimuoverli, trasformarli o sostituirli con simboli onirici innocui, metafore astratte o atmosfere surreali. Mantieni solo l'atmosfera generale, le emozioni e il simbolismo onirico, ma rendi il prompt sempre accettabile per la generazione di immagini. Non includere mai armi, sangue, violenza, nudità, atti illegali o contenuti sensibili. Restituisci solo il prompt visivo, senza spiegazioni.",
+          },
+          {
+            "role": "user",
+            "content": "Rendi questo prompt sicuro per DALL-E: $dreamText",
+          },
+        ],
+        "max_tokens": 200,
+        "temperature": 0.2,
+      }),
+    );
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      String visualPrompt = decoded['choices'][0]['message']['content'].trim();
+      return "$visualPrompt, dreamlike atmosphere, surreal art style, high quality digital art";
+    } else {
+      // Fallback: prompt generico
+      return "dreamlike surreal atmosphere, artistic interpretation, high quality";
     }
   }
 
@@ -171,7 +314,8 @@ I sogni sono personali e i loro significati possono variare molto da persona a p
           "messages": [
             {
               "role": "system",
-              "content": """Sei un esperto nella trasformazione di racconti onirici in prompt visuali per DALL-E. 
+              "content":
+                  """Sei un esperto nella trasformazione di racconti onirici in prompt visuali per DALL-E. 
 
 Il tuo compito è creare un prompt che rappresenti fedelmente il contenuto del sogno, mantenendo:
 - Tutti gli elementi chiave menzionati
@@ -181,12 +325,13 @@ Il tuo compito è creare un prompt che rappresenti fedelmente il contenuto del s
 
 Aggiungi solo miglioramenti tecnici per la qualità dell'immagine, ma mantieni il contenuto fedele al sogno originale.
 
-Restituisci solo il prompt visivo, senza spiegazioni."""
+Restituisci solo il prompt visivo, senza spiegazioni.""",
             },
             {
-              "role": "user", 
-              "content": "Trasforma questo sogno in un prompt visivo fedele: $dreamText"
-            }
+              "role": "user",
+              "content":
+                  "Trasforma questo sogno in un prompt visivo fedele: $dreamText",
+            },
           ],
           "max_tokens": 200,
           "temperature": 0.3,
@@ -195,8 +340,9 @@ Restituisci solo il prompt visivo, senza spiegazioni."""
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        String visualPrompt = decoded['choices'][0]['message']['content'].trim();
-        
+        String visualPrompt = decoded['choices'][0]['message']['content']
+            .trim();
+
         // Aggiungi suffissi per qualità senza alterare il contenuto
         return "$visualPrompt, dreamlike atmosphere, surreal art style, high quality digital art";
       } else {

@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../services/language_service.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
+import '../services/image_cache_service.dart';
 
 class DreamInterpretationPage extends StatefulWidget {
   final String dreamText;
@@ -89,11 +90,31 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
         _isGeneratingImage = true;
       });
 
-      // Fase 2: Generazione dell'immagine
-      final image = await _openAI.generateDreamImage(widget.dreamText);
+      String? image;
+      try {
+        // 1. Prova con il testo utente
+        image = await _openAI.generateDreamImage(widget.dreamText);
+      } catch (imgErr) {
+        // 2. Fallback: prompt estratto dall'interpretazione
+        final fallbackPrompt = _extractImagePromptFromInterpretation(
+          interpretation,
+        );
+        try {
+          image = await _openAI.generateDreamImage(fallbackPrompt);
+        } catch (imgErr2) {
+          // 3. Fallback finale: prompt generico onirico
+          try {
+            image = await _openAI.generateDreamImage(
+              'dreamlike surreal atmosphere, artistic interpretation, high quality',
+            );
+          } catch (imgErr3) {
+            image = '';
+          }
+        }
+      }
 
       setState(() {
-        _imageUrl = image;
+        _imageUrl = image ?? '';
         _isGeneratingImage = false;
         _isComplete = true;
       });
@@ -114,18 +135,129 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     }
   }
 
+  /// Estrae un prompt sintetico dai primi elementi chiave dell'interpretazione
+  String _extractImagePromptFromInterpretation(String interpretation) {
+    // Prendi solo le prime 1-2 frasi significative, rimuovi testo superfluo
+    final sentences = interpretation.split(RegExp(r'[.!?]\s+'));
+    final filtered = sentences.where((s) => s.trim().isNotEmpty).toList();
+    String base = filtered.take(2).join('. ');
+    // Rimuovi eventuali prefissi tipo "Questo sogno contiene..." o "Key Insights:"
+    base = base
+        .replaceAll(
+          RegExp(
+            r'^(Questo sogno contiene|Key Insights:|Intuizioni Chiave:)',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+
+    // Parole chiave per atmosfera dark
+    final darkKeywords = [
+      'oscuro',
+      'notte',
+      'ombra',
+      'paura',
+      'triste',
+      'angoscia',
+      'incubo',
+      'dark',
+      'gothic',
+      'moody',
+      'misterioso',
+      'tenebra',
+      'spavent',
+      'horror',
+      'night',
+      'shadow',
+      'fear',
+      'sad',
+      'gloom',
+      'creepy',
+      'mysterious',
+      'fog',
+      'foggy',
+      'mist',
+      'anxiety',
+      'anxious',
+      'disturb',
+      'disturbing',
+      'terror',
+      'scary',
+      'bleak',
+      'melancholy',
+      'sorrow',
+      'dread',
+      'eerie',
+      'ominous',
+      'bleak',
+      'despair',
+      'depression',
+      'lonely',
+      'solitude',
+      'solitary',
+      'cold',
+      'rain',
+      'storm',
+      'stormy',
+      'bleeding',
+      'cry',
+      'weeping',
+      'scream',
+      'crying',
+      'screaming',
+      'lost',
+      'hopeless',
+      'hopelessness',
+      'abandoned',
+      'abbandono',
+      'solitudine',
+      'pianto',
+      'urlo',
+      'urla',
+      'piangere',
+      'piangendo',
+    ];
+    final lowerInterp = interpretation.toLowerCase();
+    final isDark = darkKeywords.any((k) => lowerInterp.contains(k));
+    final style = isDark
+        ? ', dark moody mysterious atmosphere, gothic surreal art style, high quality digital art'
+        : ', dreamlike atmosphere, surreal art style, high quality digital art';
+    return base + style;
+  }
+
   Future<void> _saveDreamAutomatically(
     String interpretation,
     String imageUrl,
   ) async {
     try {
+      // Genera i tag automaticamente
+      final localizations = AppLocalizations.of(context);
+      final tags = SavedDream.generateTags(
+        widget.dreamText,
+        interpretation,
+        localizations,
+      );
+
+      final dreamId = DateTime.now().millisecondsSinceEpoch.toString();
+      String? localImagePath;
+      if (imageUrl.isNotEmpty) {
+        final imageCacheService = ImageCacheService();
+        localImagePath = await imageCacheService.downloadAndCacheImage(
+          imageUrl,
+          dreamId,
+        );
+      }
+
       final dream = SavedDream(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: dreamId,
         dreamText: widget.dreamText,
         interpretation: interpretation,
         imageUrl: imageUrl,
+        localImagePath: localImagePath,
         createdAt: DateTime.now(),
         title: _generateTitle(widget.dreamText),
+        tags: tags,
       );
 
       final storageService = DreamStorageService();

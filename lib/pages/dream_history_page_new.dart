@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
@@ -45,20 +46,41 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
     SavedDream dream,
     AppLocalizations localizations,
   ) async {
+    final cancelButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      side: const BorderSide(color: Color(0xFFD1D5DB)),
+    );
+    final deleteButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      foregroundColor: Colors.red,
+      side: BorderSide.none,
+      // nessun bordo, solo testo rosso
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(localizations.deleteDream),
         content: Text(localizations.confirmDelete),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(localizations.cancel),
+          SizedBox(
+            width: 120,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              style: cancelButtonStyle,
+              child: Text(localizations.cancel),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(localizations.delete),
+          SizedBox(
+            width: 120,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: deleteButtonStyle,
+              child: Text(localizations.delete),
+            ),
           ),
         ],
       ),
@@ -78,20 +100,41 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
   Future<void> _deleteAllDreams(AppLocalizations localizations) async {
     if (_dreams.isEmpty) return;
 
+    final cancelButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      side: const BorderSide(color: Color(0xFFD1D5DB)),
+    );
+    final deleteButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      foregroundColor: Colors.red,
+      side: BorderSide.none,
+      // nessun bordo, solo testo rosso
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(localizations.deleteAllDreams),
         content: Text(localizations.confirmDeleteAll),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(localizations.cancel),
+          SizedBox(
+            width: 120,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              style: cancelButtonStyle,
+              child: Text(localizations.cancel),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(localizations.deleteAll),
+          SizedBox(
+            width: 120,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: deleteButtonStyle,
+              child: Text(localizations.deleteAll),
+            ),
           ),
         ],
       ),
@@ -308,6 +351,57 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                   ),
                 ],
               ),
+
+              // --- DREAM IMAGE ---
+              if ((dream.localImagePath?.isNotEmpty ?? false) ||
+                  (dream.imageUrl?.isNotEmpty ?? false)) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child:
+                      dream.localImagePath != null &&
+                          dream.localImagePath!.isNotEmpty
+                      ? Image.file(
+                          File(dream.localImagePath!),
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : dream.imageUrl != null && dream.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          dream.imageUrl!,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+
+              // --- TAGS ---
+              if (dream.tags.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: dream.tags
+                      .map(
+                        (tag) => Chip(
+                          label: Text(tag),
+                          backgroundColor: theme.colorScheme.secondaryContainer,
+                          labelStyle: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 0,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
