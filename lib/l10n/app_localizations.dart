@@ -157,6 +157,7 @@ class AppLocalizations {
       'demoInterpretationText':
           '🌟 **Interpretazione Demo del tuo sogno:**\n\nIl tuo sogno rivela un viaggio interiore profondo. Gli elementi che hai descritto simboleggiano:\n\n• **Trasformazione personale** - Stai attraversando un periodo di crescita\n• **Nuove opportunità** - Il subconscio ti sta preparando per cambiamenti positivi\n• **Creatività** - La tua mente sta elaborando nuove idee e possibilità\n\n✨ Questo sogno suggerisce che sei pronto per abbracciare nuove sfide e scoprire aspetti nascosti di te stesso.\n\n💫 I simboli onirici indicano un periodo favorevole per prendere decisioni importanti e seguire la tua intuizione.\n\n*Questa è una demo. Per l\'interpretazione AI completa, configura la chiave API OpenAI.*',
       'close': 'Chiudi',
+      'sogna': 'Sogna',
 
       // Dream Tags - Italian
       'tagPositiveDream': 'Sogno Positivo',
@@ -338,6 +339,12 @@ class AppLocalizations {
       'notificationSettingsDialog':
           'Personalizza le tue notifiche. Questa funzionalità sarà disponibile presto.',
       'ok': 'OK',
+      'enableNotificationsTitle': 'Attiva le notifiche',
+      'enableNotificationsMessage':
+          'Vuoi abilitare le notifiche per ricevere aggiornamenti quando le immagini dei tuoi sogni sono pronte e altre notifiche dell\'app?',
+      'enableNotificationsNow': 'Attiva ora',
+      'enableNotificationsLater': 'Pi\u00f9 tardi',
+      'notificationEnabledConfirmation': 'Le notifiche sono state abilitate',
 
       // Delete confirmation dialog - Italian
       'dreamAlreadySaved': 'Sogno già salvato',
@@ -494,6 +501,7 @@ class AppLocalizations {
       'demoInterpretationText':
           '🌟 **Demo Interpretation of your dream:**\n\nYour dream reveals a deep inner journey. The elements you described symbolize:\n\n• **Personal transformation** - You are going through a period of growth\n• **New opportunities** - Your subconscious is preparing you for positive changes\n• **Creativity** - Your mind is processing new ideas and possibilities\n\n✨ This dream suggests you are ready to embrace new challenges and discover hidden aspects of yourself.\n\n💫 The dream symbols indicate a favorable period for making important decisions and following your intuition.\n\n*This is a demo. For complete AI interpretation, configure the OpenAI API key.*',
       'close': 'Close',
+      'sogna': 'Dream',
 
       // Dream Tags - English
       'tagPositiveDream': 'Positive Dream',
@@ -671,6 +679,12 @@ class AppLocalizations {
       'notificationSettingsDialog':
           'Customize your notifications. This feature will be available soon.',
       'ok': 'OK',
+      'enableNotificationsTitle': 'Enable notifications',
+      'enableNotificationsMessage':
+          'Would you like to enable notifications to be informed when your dream image is ready and for other app updates?',
+      'enableNotificationsNow': 'Enable now',
+      'enableNotificationsLater': 'Later',
+      'notificationEnabledConfirmation': 'Notifications enabled',
 
       // Delete confirmation dialog - English
       'dreamAlreadySaved': 'Dream Already Saved',
@@ -825,6 +839,7 @@ class AppLocalizations {
   String get yourInterpretedDreamsWillAppearHere =>
       translate('yourInterpretedDreamsWillAppearHere');
   String get close => translate('close');
+  String get sogna => translate('sogna');
 
   // Dream Tags getters
   String get tagPositiveDream => translate('tagPositiveDream');
@@ -1003,6 +1018,13 @@ class AppLocalizations {
       translate('notificationSettingsTitle');
   String get notificationSettingsDialog =>
       translate('notificationSettingsDialog');
+  String get enableNotificationsTitle => translate('enableNotificationsTitle');
+  String get enableNotificationsMessage =>
+      translate('enableNotificationsMessage');
+  String get enableNotificationsNow => translate('enableNotificationsNow');
+  String get enableNotificationsLater => translate('enableNotificationsLater');
+  String get notificationEnabledConfirmation =>
+      translate('notificationEnabledConfirmation');
   String get ok => translate('ok');
 
   // Delete confirmation dialog getters

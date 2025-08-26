@@ -180,37 +180,21 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
         // ignore: fallback to network image only
       }
 
-      return;
-    }
-
-    // Resume only if this page corresponds to the same dream text and it's still in progress
-    if ((status == 'in_progress') &&
-        dreamText.trim() == widget.dreamText.trim()) {
-      // small delay to allow UI to settle
-      if (mounted) {
-        setState(() {
-          _isGeneratingImage = true;
-          _isComplete = false;
-          // mark that we are resuming a pending job so UI can notify the user
-          _resumedFromPending = true;
-        });
+      // If the interpretation finished but the image was not generated yet,
+      // resume image generation from the saved interpretation.
+      if (status == 'interpretation_done' &&
+          dreamText.trim() == widget.dreamText.trim()) {
+        if (mounted) {
+          setState(() {
+            _interpretation = pendingInterpretation;
+            _isGeneratingImage = true;
+            _isComplete = false;
+            _resumedFromPending = true;
+          });
+        }
+        await _resumeImageGenerationFromInterpretation(pendingInterpretation);
+        return;
       }
-      // Resume full processing (interpretation + image)
-      await _startInterpretation();
-      return;
-    } else if (status == 'interpretation_done' &&
-        dreamText.trim() == widget.dreamText.trim()) {
-      // Interpretation is already done but image generation did not finish.
-      if (mounted) {
-        setState(() {
-          _interpretation = pendingInterpretation;
-          _isGeneratingImage = true;
-          _isComplete = false;
-          _resumedFromPending = true;
-        });
-      }
-      // Try to resume image generation from the interpretation stage
-      await _resumeImageGenerationFromInterpretation(pendingInterpretation);
       return;
     } else {
       // If image generation was in progress and an imageUrl is available,
@@ -760,103 +744,145 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
 
             return Column(
               children: [
-                if (_resumedFromPending)
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: FractionallySizedBox(
-                      widthFactor: 0.78, // leave ~22% total horizontal margin
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: 520,
-                          maxHeight: 140,
-                        ),
-                        child: Padding(
+                // Animate the banner's height so showing/hiding it doesn't
+                // cause an abrupt layout jump which can lead to a transient
+                // overflow. When not present we emit a zero-sized box.
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  child: _resumedFromPending
+                      ? Padding(
                           padding: const EdgeInsets.only(
                             top: 10.0,
                             bottom: 8.0,
                           ),
-                          child: Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            color: theme.colorScheme.surfaceVariant.withOpacity(
-                              0.98,
-                            ),
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        color: theme.colorScheme.primary,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: FractionallySizedBox(
+                              widthFactor:
+                                  0.78, // leave ~22% total horizontal margin
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 520,
+                                ),
+                                child: Container(
+                                  // Use a centered, compact "pill" so the background
+                                  // gradient remains visually continuous and we avoid
+                                  // a full-width darker patch.
+                                  alignment: Alignment.center,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 520,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          _wrapBannerText(
-                                            localizations
-                                                .doNotLeaveDuringInterpretation,
+                                      decoration: BoxDecoration(
+                                        // Use the surface color with a subtle opacity so the
+                                        // pill blends smoothly with the gradient background
+                                        color: theme.colorScheme.surface
+                                            .withOpacity(
+                                              theme.brightness ==
+                                                      Brightness.light
+                                                  ? 0.03
+                                                  : 0.06,
+                                            ),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.04,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
                                           ),
-                                          style: TextStyle(
-                                            color: theme.colorScheme.onSurface,
-                                            fontSize: 13,
-                                          ),
-                                          softWrap: true,
-                                          maxLines: 3,
+                                        ],
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline
+                                              .withOpacity(0.04),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _resumedFromPending = false;
-                                          });
-                                        },
-                                        icon: Icon(
-                                          Icons.close_rounded,
-                                          size: 18,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.info_outline,
+                                            color: theme.colorScheme.primary,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Flexible(
+                                            child: Text(
+                                              _wrapBannerText(
+                                                localizations
+                                                    .doNotLeaveDuringInterpretation,
+                                              ),
+                                              style: TextStyle(
+                                                color:
+                                                    theme.colorScheme.onSurface,
+                                                fontSize: 12,
+                                                // Use a compact line height so the text appears
+                                                // vertically centered next to the icon.
+                                                height: 1.0,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                _resumedFromPending = false;
+                                              });
+                                            },
+                                            customBorder:
+                                                RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(6),
+                                              child: Icon(
+                                                Icons.close_rounded,
+                                                size: 16,
+                                                color:
+                                                    theme.colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+
+                // Keep the content centered vertically when it's smaller than
+                // the available space, and allow scrolling when it's larger.
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      // Reserve vertical space for the resumed banner when present.
-                      final double bannerHeight = _resumedFromPending
-                          ? 140.0
-                          : 0.0;
-                      final double bodyHeight =
-                          (constraints.maxHeight - bannerHeight) > 0
-                          ? (constraints.maxHeight - bannerHeight)
-                          : 0.0;
-
                       return SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: bodyHeight),
-                          child: Container(
-                            width: double.infinity,
-                            height: bodyHeight,
-                            child: content,
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
                           ),
+                          child: Center(child: content),
                         ),
                       );
                     },
@@ -874,137 +900,143 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     ThemeData theme,
     AppLocalizations localizations,
   ) {
+    // Modern, compact loading card with stronger visual hierarchy
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
-        child: Builder(
-          builder: (context) {
-            // Responsive scale based on screen width
-            final width = MediaQuery.of(context).size.width;
-            // base width 380 (typical phone); clamp scale to reasonable range
-            final scale = (width / 380).clamp(0.85, 1.25);
-            final headerFont = 20.0 * scale;
-            final subtitleFont = 16.0 * scale;
-            final adviceFont = 14.0 * scale;
-            final iconSize = 60.0 * (scale.clamp(0.9, 1.15));
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Animazione della persona che dorme
-                AnimatedBuilder(
-                  animation: _sleepAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _sleepAnimation.value,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.primaryContainer.withOpacity(
-                            0.3,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Floating animated icon
+                  AnimatedBuilder(
+                    animation: _sleepAnimation,
+                    builder: (context, child) {
+                      final scale = _sleepAnimation.value;
+                      return Transform.translate(
+                        offset: Offset(0, -8 * (scale - 1)),
+                        child: Container(
+                          width: 110,
+                          height: 110,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary.withOpacity(0.95),
+                                theme.colorScheme.secondary.withOpacity(0.9),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.22,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.bedtime_rounded,
+                            size: 52,
+                            color: Colors.white,
                           ),
                         ),
-                        child: Icon(
-                          Icons.bedtime_rounded,
-                          size: iconSize,
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    _isGeneratingImage
+                        ? localizations.generatingImageText
+                        : localizations.interpretingDream,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onBackground,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Circular progress with accent ring
+                  SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 6,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          _isGeneratingImage ? Icons.image : Icons.auto_awesome,
+                          color: theme.colorScheme.primary,
+                          size: 28,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Text(
+                    localizations.waitingMessage,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: theme.colorScheme.onBackground.withOpacity(0.78),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Advice inline (no surrounding box) — icon + text
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
                           color: theme.colorScheme.primary,
                         ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 28),
-
-                // Testo di stato
-                Text(
-                  _isGeneratingImage
-                      ? localizations.generatingImageText
-                      : localizations.interpretingDream,
-                  style: TextStyle(
-                    fontSize: headerFont,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onBackground,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 12),
-
-                // Indicatore di caricamento
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-
-                // Sottotitolo e avviso compatti, centrati
-                const SizedBox(height: 6),
-                Text(
-                  localizations.waitingMessage,
-                  style: TextStyle(
-                    fontSize: subtitleFont,
-                    color: theme.colorScheme.onBackground.withOpacity(0.75),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                // Banner-like contained advice for clarity (narrowed)
-                Align(
-                  alignment: Alignment.center,
-                  child: FractionallySizedBox(
-                    widthFactor: 0.78,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceVariant.withOpacity(
-                            0.95,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: theme.colorScheme.primary,
-                              size: 18.0 * (scale.clamp(0.9, 1.1)),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                localizations.doNotLeaveDuringInterpretation,
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface,
-                                  fontSize: adviceFont,
-                                ),
-                                textAlign: TextAlign.center,
-                                softWrap: true,
-                                maxLines: 3,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            localizations.doNotLeaveDuringInterpretation,
+                            style: TextStyle(
+                              color: theme.colorScheme.onBackground.withOpacity(
+                                0.88,
                               ),
                             ),
-                          ],
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1018,201 +1050,302 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
       opacity: _fadeAnimation,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Titolo
-            Text(
-              localizations.yourDreamTitle,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Testo del sogno
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.2),
-                ),
-              ),
-              child: Text(
-                widget.dreamText,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Interpretazione
-            Text(
-              localizations.interpretation,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Text(
-                _interpretation,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurface,
-                  height: 1.6,
-                ),
-              ),
-            ),
-
-            // Immagine del sogno
-            if ((_imageUrl.isNotEmpty) ||
-                (_localImagePath != null && _localImagePath!.isNotEmpty)) ...[
-              const SizedBox(height: 32),
-
-              Text(
-                localizations.dreamVisualization,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: _localImagePath != null && _localImagePath!.isNotEmpty
-                      ? Image.file(File(_localImagePath!), fit: BoxFit.cover)
-                      : Image.network(
-                          _imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              height: 300,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceVariant,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.errorContainer,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.error_outline,
-                                      size: 48,
-                                      color: theme.colorScheme.onErrorContainer,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      localizations.imageLoadError,
-                                      style: TextStyle(
-                                        color:
-                                            theme.colorScheme.onErrorContainer,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ),
-            ],
-
-            // Messaggio di salvataggio
-            if (_isSaved)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 20),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.green.withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.green,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        localizations.dreamSavedSuccessfully,
-                        style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row with title and actions
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      localizations.yourDreamTitle,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  if (_isSaved)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.green.withOpacity(0.22),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green.shade700,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            localizations.dreamSavedSuccessfully,
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
 
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 18),
+
+              // Responsive layout: side-by-side on wide screens, stacked on phones
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 760;
+                  return isWide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left: dream text + interpretation
+                            Expanded(
+                              flex: 6,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Dream text card
+                                  _stylishCard(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(18.0),
+                                      child: Text(
+                                        widget.dreamText,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    theme: theme,
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  Text(
+                                    localizations.interpretation,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  _stylishCard(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(18.0),
+                                      child: Text(
+                                        _interpretation,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: theme.colorScheme.onSurface,
+                                          height: 1.6,
+                                        ),
+                                      ),
+                                    ),
+                                    theme: theme,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(width: 20),
+
+                            // Right: image card
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if ((_imageUrl.isNotEmpty) ||
+                                      (_localImagePath != null &&
+                                          _localImagePath!.isNotEmpty)) ...[
+                                    Text(
+                                      localizations.dreamVisualization,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _imageCard(theme, localizations),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _stylishCard(
+                              child: Padding(
+                                padding: const EdgeInsets.all(18.0),
+                                child: Text(
+                                  widget.dreamText,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                              theme: theme,
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            Text(
+                              localizations.interpretation,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            _stylishCard(
+                              child: Padding(
+                                padding: const EdgeInsets.all(18.0),
+                                child: Text(
+                                  _interpretation,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: theme.colorScheme.onSurface,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ),
+                              theme: theme,
+                            ),
+
+                            if ((_imageUrl.isNotEmpty) ||
+                                (_localImagePath != null &&
+                                    _localImagePath!.isNotEmpty)) ...[
+                              const SizedBox(height: 20),
+                              Text(
+                                localizations.dreamVisualization,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _imageCard(theme, localizations),
+                            ],
+                          ],
+                        );
+                },
+              ),
+
+              const SizedBox(height: 28),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // Reusable stylish card used in the redesigned layout
+  Widget _stylishCard({required Widget child, required ThemeData theme}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.08)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _imageCard(ThemeData theme, AppLocalizations localizations) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: _localImagePath != null && _localImagePath!.isNotEmpty
+            ? Image.file(File(_localImagePath!), fit: BoxFit.cover)
+            : Image.network(
+                _imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 300,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceVariant,
+                    ),
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 220,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            localizations.imageLoadError,
+                            style: TextStyle(
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }

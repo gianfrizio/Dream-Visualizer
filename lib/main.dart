@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:async';
@@ -11,15 +12,16 @@ import 'services/language_service.dart';
 import 'services/theme_service.dart';
 import 'services/biometric_auth_service.dart';
 import 'services/encryption_service.dart';
-import 'pages/dream_history_page.dart';
-import 'pages/settings_page.dart';
-import 'pages/dream_analytics_page.dart';
 import 'pages/dream_interpretation_page.dart';
 import 'pages/simple_biometric_test_page_new.dart';
-import 'pages/improved_community_page.dart';
-import 'pages/profile_page.dart';
 import 'l10n/app_localizations.dart';
 import 'services/notification_service.dart';
+import 'widgets/starry_background.dart';
+import 'widgets/global_bottom_menu.dart';
+
+// Temporary global notifier used for debugging touch events on-device.
+// Set to an Offset when a pointer down occurs and cleared shortly after.
+final ValueNotifier<Offset?> _touchNotifier = ValueNotifier<Offset?>(null);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,8 +69,12 @@ void main() async {
 class DreamApp extends StatelessWidget {
   final LanguageService languageService;
   final ThemeService themeService;
+  // Keep a persistent navigator key and route observer at the widget level
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final RouteObserver<ModalRoute<void>> routeObserver =
+      RouteObserver<ModalRoute<void>>();
 
-  const DreamApp({
+  DreamApp({
     super.key,
     required this.languageService,
     required this.themeService,
@@ -76,12 +82,100 @@ class DreamApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([languageService, themeService]),
+    // Use class-level navigatorKey and routeObserver so they persist across rebuilds
+    final _navigatorKey = navigatorKey;
+    final _routeObserver = routeObserver;
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([languageService, themeService]),
       builder: (context, child) {
         return MaterialApp(
+          navigatorKey: _navigatorKey,
+          navigatorObservers: [_routeObserver],
           title: 'Dreamsy',
           debugShowCheckedModeBanner: false,
+          // Inject a global star layer as a subtle overlay so stars are visible
+          // even when pages draw full-bleed backgrounds. Use IgnorePointer so
+          // interactions are unaffected and adjust opacity by theme.
+          builder: (context, child) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            // On light backgrounds we need a stronger star overlay so stars
+            // remain visible; increase opacity for light theme only.
+            // Raised to make stars more prominent on pale backgrounds.
+            final overlayOpacity = isDark ? 0.14 : 0.45;
+
+            // Reserve only the system bottom inset so content can extend
+            // right up to the global menu. Avoid adding extra fixed height
+            // which produced a visible gap on some devices.
+            final double _globalMenuExtraHeight = 0.0;
+            final double _menuInset =
+                MediaQuery.of(context).viewPadding.bottom +
+                _globalMenuExtraHeight;
+
+            return Stack(
+              children: [
+                if (child != null)
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: _menuInset),
+                      child: child,
+                    ),
+                  ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: overlayOpacity,
+                      child: StarryBackground(),
+                    ),
+                  ),
+                ),
+                // Global bottom menu overlay: let the menu size itself and sit above
+                // system insets. Use SafeArea(top: false) so it respects the bottom
+                // inset (navigation bar) and isn't clipped by a hard height.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (ev) {
+                      // Debug: log pointer events that hit the overlay container
+                      print('Overlay Listener: pointer down at ${ev.position}');
+
+                      // Update the global touch notifier so a visual indicator
+                      // can be shown on-device. Clear it after a short delay.
+                      try {
+                        _touchNotifier.value = ev.position;
+                        Future.delayed(const Duration(milliseconds: 600), () {
+                          if (_touchNotifier.value == ev.position) {
+                            _touchNotifier.value = null;
+                          }
+                        });
+                      } catch (_) {}
+                    },
+                    child: Container(
+                      // Transparent container wrapping the global menu. Top
+                      // border removed to avoid a thin visible separator on some devices.
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent,
+                      ),
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: SafeArea(
+                          top: false,
+                          child: GlobalBottomMenu(
+                            navigatorKey: _navigatorKey,
+                            routeObserver: _routeObserver,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // NOTE: visual touch indicator removed for production. Listener still logs pointer events.
+              ],
+            );
+          },
           locale: languageService.currentLocale,
           localizationsDelegates: const [
             AppLocalizations.delegate,
@@ -183,6 +277,67 @@ class _DreamHomePageState extends State<DreamHomePage>
     WidgetsBinding.instance.addObserver(this);
     _initSpeech();
     _checkBiometricAuth();
+    // Ask for notification permissions on first run (non-blocking)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _askNotificationPermissionIfFirstRun();
+    });
+  }
+
+  static const String _kNotifiedPromptKey = 'notified_prompt_shown_v1';
+
+  Future<void> _askNotificationPermissionIfFirstRun() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final already = prefs.getBool(_kNotifiedPromptKey) ?? false;
+      if (already) return;
+
+      // Show a simple dialog asking the user to enable notifications
+      if (!mounted) return;
+      final localizations = AppLocalizations.of(context);
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(
+            localizations?.enableNotificationsTitle ?? 'Enable notifications',
+          ),
+          content: Text(
+            localizations?.enableNotificationsMessage ??
+                'Enable notifications to be informed when your dream image is ready and other updates.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: Text(localizations?.enableNotificationsLater ?? 'Later'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: Text(
+                localizations?.enableNotificationsNow ?? 'Enable now',
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (result == true) {
+        final granted = await NotificationService().requestPermissions();
+        // Optionally show a small confirmation
+        if (granted && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                localizations?.notificationEnabledConfirmation ??
+                    'Notifications enabled',
+              ),
+            ),
+          );
+        }
+      }
+
+      await prefs.setBool(_kNotifiedPromptKey, true);
+    } catch (e) {
+      print('Error showing notification prompt: $e');
+    }
   }
 
   @override
@@ -833,12 +988,27 @@ class _DreamHomePageState extends State<DreamHomePage>
                         // Bottoni principali (sempre visibili)
                         _buildMainActionButtons(theme, localizations),
 
-                        // Spazio flessibile per centrare i suggerimenti
-                        Expanded(
+                        // Spacing between action buttons and the suggestions box
+                        const SizedBox(height: 16),
+
+                        // Suggestion box placed directly below the main action
+                        // buttons (no Expanded). We remove bottom view insets so
+                        // the card doesn't move when the keyboard opens, and add
+                        // a small fixed bottom padding to keep distance from the
+                        // global menu.
+                        MediaQuery.removeViewInsets(
+                          context: context,
+                          removeBottom: true,
                           child: Center(
-                            child: _interpretation.isNotEmpty
-                                ? _buildInterpretationCard(theme, localizations)
-                                : const SizedBox.shrink(),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: _interpretation.isNotEmpty
+                                  ? _buildInterpretationCard(
+                                      theme,
+                                      localizations,
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
                           ),
                         ),
 
@@ -856,174 +1026,8 @@ class _DreamHomePageState extends State<DreamHomePage>
           ),
         ), // Chiusura Container e GestureDetector
       ), // Chiusura body
-      bottomNavigationBar: _buildBottomMenu(theme, localizations),
       resizeToAvoidBottomInset:
           false, // Evita che il menu si muova con la tastiera
-    );
-  }
-
-  // Bottom Menu fisso integrato con lo sfondo
-  Widget _buildBottomMenu(ThemeData theme, AppLocalizations localizations) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.surface.withOpacity(0.0),
-            theme.colorScheme.surface.withOpacity(0.95),
-            theme.colorScheme.surface,
-          ],
-        ),
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              // Profilo
-              Expanded(
-                child: _buildBottomMenuItem(
-                  icon: Icons.person_rounded,
-                  label: localizations.profile,
-                  color: const Color(0xFFF59E0B),
-                  onTap: () async {
-                    _textFieldFocusNode.unfocus();
-                    await _stopListeningAction();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ProfilePage(themeService: widget.themeService),
-                      ),
-                    );
-                  },
-                  theme: theme,
-                ),
-              ),
-
-              // Cronologia
-              Expanded(
-                child: _buildBottomMenuItem(
-                  icon: Icons.history_rounded,
-                  label: localizations.history,
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () async {
-                    _textFieldFocusNode.unfocus();
-                    await _stopListeningAction();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const DreamHistoryPage(),
-                      ),
-                    );
-                  },
-                  theme: theme,
-                ),
-              ),
-
-              // Community
-              Expanded(
-                child: _buildBottomMenuItem(
-                  icon: Icons.people_rounded,
-                  label: localizations.community,
-                  color: const Color(0xFF10B981),
-                  onTap: () async {
-                    _textFieldFocusNode.unfocus();
-                    await _stopListeningAction();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ImprovedCommunityPage(),
-                      ),
-                    );
-                  },
-                  theme: theme,
-                ),
-              ),
-
-              // Analytics
-              Expanded(
-                child: _buildBottomMenuItem(
-                  icon: Icons.analytics_rounded,
-                  label: localizations.analytics,
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () async {
-                    _textFieldFocusNode.unfocus();
-                    await _stopListeningAction();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const DreamAnalyticsPage(),
-                      ),
-                    );
-                  },
-                  theme: theme,
-                ),
-              ),
-
-              // Impostazioni
-              Expanded(
-                child: _buildBottomMenuItem(
-                  icon: Icons.settings_rounded,
-                  label: localizations.settings,
-                  color: const Color(0xFF6B7280),
-                  onTap: () async {
-                    _textFieldFocusNode.unfocus();
-                    await _stopListeningAction();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SettingsPage(themeService: widget.themeService),
-                      ),
-                    );
-                  },
-                  theme: theme,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget per elementi secondari del menu
-  Widget _buildBottomMenuItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-    required ThemeData theme,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
