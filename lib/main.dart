@@ -104,23 +104,19 @@ class DreamApp extends StatelessWidget {
             // Raised to make stars more prominent on pale backgrounds.
             final overlayOpacity = isDark ? 0.14 : 0.45;
 
-            // Reserve only the system bottom inset so content can extend
-            // right up to the global menu. Avoid adding extra fixed height
-            // which produced a visible gap on some devices.
-            final double _globalMenuExtraHeight = 0.0;
-            final double _menuInset =
-                MediaQuery.of(context).viewPadding.bottom +
-                _globalMenuExtraHeight;
+            // Allow content to extend under the global bottom menu.
+            // We intentionally do not add extra bottom padding here so full-
+            // bleed backgrounds remain continuous up to the bottom edge.
 
             return Stack(
               children: [
                 if (child != null)
-                  Positioned.fill(
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: _menuInset),
-                      child: child,
-                    ),
-                  ),
+                  // Allow the app content (including full-bleed gradients) to
+                  // extend under the global bottom menu. The menu will be
+                  // rendered on top and should be transparent or semi-transparent
+                  // so no hard seam appears. Individual pages should still
+                  // respect SafeArea / viewInsets for interactive controls.
+                  Positioned.fill(child: child),
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(

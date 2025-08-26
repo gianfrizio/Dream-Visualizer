@@ -152,11 +152,10 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
 
     final main = SafeArea(
       child: Container(
-        // Use scaffoldBackgroundColor so the menu visually merges with
-        // the app's background and no seam appears between content and the menu.
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-        ),
+        // Keep the container transparent so the app's background gradient
+        // remains visible underneath. Individual menu items can use
+        // Material surfaces where needed.
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(

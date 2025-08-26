@@ -715,7 +715,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context)!;
 
-    // Build a body that can show a top banner when resuming a pending job
+    // Build a body that can show a top banner when resuming a pending job.
+    // Place the banner inside the same gradient container so it visually
+    // blends with the background and doesn't produce a hard cut.
     final content = Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -726,150 +728,139 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
               : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
         ),
       ),
-      child: _isComplete
-          ? _buildCompletedInterpretation(theme, localizations)
-          : _buildLoadingAnimation(theme, localizations),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Animated banner moved here so it shares the same gradient
+          // background as the rest of the page.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _resumedFromPending
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10.0, bottom: 8.0),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: FractionallySizedBox(
+                        widthFactor: 0.78, // leave ~22% total horizontal margin
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: Container(
+                            alignment: Alignment.center,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 520),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface.withOpacity(
+                                    theme.brightness == Brightness.light
+                                        ? 0.03
+                                        : 0.06,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color: theme.colorScheme.outline
+                                        .withOpacity(0.04),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      color: theme.colorScheme.primary,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Text(
+                                        _wrapBannerText(
+                                          localizations
+                                              .doNotLeaveDuringInterpretation,
+                                        ),
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface,
+                                          fontSize: 12,
+                                          height: 1.0,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _resumedFromPending = false;
+                                        });
+                                      },
+                                      customBorder: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          // The actual content (loading or completed) follows and will
+          // naturally sit on the same gradient background.
+          _isComplete
+              ? _buildCompletedInterpretation(theme, localizations)
+              : _buildLoadingAnimation(theme, localizations),
+        ],
+      ),
     );
 
     return Scaffold(
+      // Extend the gradient behind the AppBar so there is no hard seam
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(localizations.dreamInterpretationTitle),
-        backgroundColor: theme.colorScheme.primaryContainer,
-        foregroundColor: theme.colorScheme.onPrimaryContainer,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: SafeArea(
         child: Builder(
           builder: (context) {
             // builder scope for layout adjustments
 
+            final double topOffset =
+                MediaQuery.of(context).padding.top + kToolbarHeight;
+
             return Column(
               children: [
-                // Animate the banner's height so showing/hiding it doesn't
-                // cause an abrupt layout jump which can lead to a transient
-                // overflow. When not present we emit a zero-sized box.
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.topCenter,
-                  child: _resumedFromPending
-                      ? Padding(
-                          padding: const EdgeInsets.only(
-                            top: 10.0,
-                            bottom: 8.0,
-                          ),
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: FractionallySizedBox(
-                              widthFactor:
-                                  0.78, // leave ~22% total horizontal margin
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 520,
-                                ),
-                                child: Container(
-                                  // Use a centered, compact "pill" so the background
-                                  // gradient remains visually continuous and we avoid
-                                  // a full-width darker patch.
-                                  alignment: Alignment.center,
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 520,
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        // Use the surface color with a subtle opacity so the
-                                        // pill blends smoothly with the gradient background
-                                        color: theme.colorScheme.surface
-                                            .withOpacity(
-                                              theme.brightness ==
-                                                      Brightness.light
-                                                  ? 0.03
-                                                  : 0.06,
-                                            ),
-                                        borderRadius: BorderRadius.circular(
-                                          999,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.04,
-                                            ),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline
-                                              .withOpacity(0.04),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.info_outline,
-                                            color: theme.colorScheme.primary,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Flexible(
-                                            child: Text(
-                                              _wrapBannerText(
-                                                localizations
-                                                    .doNotLeaveDuringInterpretation,
-                                              ),
-                                              style: TextStyle(
-                                                color:
-                                                    theme.colorScheme.onSurface,
-                                                fontSize: 12,
-                                                // Use a compact line height so the text appears
-                                                // vertically centered next to the icon.
-                                                height: 1.0,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          InkWell(
-                                            onTap: () {
-                                              setState(() {
-                                                _resumedFromPending = false;
-                                              });
-                                            },
-                                            customBorder:
-                                                RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(6),
-                                              child: Icon(
-                                                Icons.close_rounded,
-                                                size: 16,
-                                                color:
-                                                    theme.colorScheme.onSurface,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
+                // Push the main content below the transparent AppBar so the
+                // title remains visible and the gradient continues behind it.
+                SizedBox(height: topOffset),
 
                 // Keep the content centered vertically when it's smaller than
                 // the available space, and allow scrolling when it's larger.
