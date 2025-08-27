@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' hide Key;
 
 class EncryptionService {
   static const String _keyStorageKey = 'encryption_key';
@@ -55,7 +56,7 @@ class EncryptionService {
     await prefs.setString(_keyStorageKey, keyString);
     await prefs.setString(_ivStorageKey, ivString);
 
-    print('Nuove chiavi di crittografia generate');
+    debugPrint('Nuove chiavi di crittografia generate');
   }
 
   void _loadKeysFromStorage(String keyString, String ivString) {
@@ -88,7 +89,7 @@ class EncryptionService {
       final encrypted = Encrypted.fromBase64(encryptedText);
       return _encrypter.decrypt(encrypted, iv: _iv);
     } catch (e) {
-      print('Errore nella decrittazione: $e');
+      debugPrint('Errore nella decrittazione: $e');
       rethrow;
     }
   }
@@ -126,7 +127,7 @@ class EncryptionService {
       final decryptedList = _encrypter.decryptBytes(encrypted, iv: _iv);
       return Uint8List.fromList(decryptedList);
     } catch (e) {
-      print('Errore nella decrittazione dei bytes: $e');
+      debugPrint('Errore nella decrittazione dei bytes: $e');
       rethrow;
     }
   }
@@ -150,7 +151,7 @@ class EncryptionService {
     await prefs.remove(_keyStorageKey);
     await prefs.remove(_ivStorageKey);
     await _generateNewKeys();
-    print('Chiavi di crittografia rigenerate');
+    debugPrint('Chiavi di crittografia rigenerate');
   }
 
   /// Elimina le chiavi di crittografia

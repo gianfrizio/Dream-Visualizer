@@ -103,7 +103,7 @@ class _SimpleBiometricTestPageState extends State<SimpleBiometricTestPage> {
   }
 
   Future<void> _testAuth() async {
-    print('SimpleBiometricTestPage: _testAuth chiamato');
+    debugPrint('SimpleBiometricTestPage: _testAuth chiamato');
 
     setState(() {
       _isLoading = true;
@@ -115,7 +115,7 @@ class _SimpleBiometricTestPageState extends State<SimpleBiometricTestPage> {
         localizedReason: 'Test autenticazione biometrica',
       );
 
-      print('SimpleBiometricTestPage: Risultato autenticazione - $result');
+      debugPrint('SimpleBiometricTestPage: Risultato autenticazione - $result');
 
       if (result) {
         setState(() {
@@ -133,7 +133,7 @@ class _SimpleBiometricTestPageState extends State<SimpleBiometricTestPage> {
         });
       }
     } on PlatformException catch (e) {
-      print(
+      debugPrint(
         'SimpleBiometricTestPage: PlatformException - ${e.code}: ${e.message}',
       );
 
@@ -155,7 +155,7 @@ SOLUZIONE: Disabilita l'autenticazione biometrica cliccando il pulsante arancion
         });
       }
     } catch (e) {
-      print('SimpleBiometricTestPage: Errore generico - $e');
+      debugPrint('SimpleBiometricTestPage: Errore generico - $e');
       setState(() {
         _statusMessage = 'Errore generico: $e';
       });
@@ -167,7 +167,7 @@ SOLUZIONE: Disabilita l'autenticazione biometrica cliccando il pulsante arancion
   }
 
   Future<void> _disableAndExit() async {
-    print('SimpleBiometricTestPage: _disableAndExit chiamato');
+    debugPrint('SimpleBiometricTestPage: _disableAndExit chiamato');
 
     setState(() {
       _isLoading = true;
@@ -188,7 +188,7 @@ SOLUZIONE: Disabilita l'autenticazione biometrica cliccando il pulsante arancion
         Navigator.pop(context, true);
       }
     } catch (e) {
-      print('Errore durante disabilitazione: $e');
+      debugPrint('Errore durante disabilitazione: $e');
       // Anche se c'è un errore, permetti l'accesso
       if (mounted) {
         Navigator.pop(context, true);

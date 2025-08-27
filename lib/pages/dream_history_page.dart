@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
+import '../services/favorites_service.dart';
 import '../l10n/app_localizations.dart';
 import 'dream_details_page.dart';
 
@@ -14,31 +16,49 @@ class DreamHistoryPage extends StatefulWidget {
 
 class _DreamHistoryPageState extends State<DreamHistoryPage> {
   final DreamStorageService _storageService = DreamStorageService();
+  final FavoritesService _favoritesService = FavoritesService();
   List<SavedDream> _dreams = [];
+  List<SavedDream> _favoriteDreams = [];
+  final Set<String> _favoriteIds = {};
+  bool _showFavorites = false;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadDreams();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final favs = await _favoritesService.getFavoriteDreams();
+      setState(() {
+        _favoriteDreams = favs;
+        _favoriteIds.clear();
+        _favoriteIds.addAll(favs.map((d) => d.id));
+      });
+    } catch (e) {
+      // ignore errors
+    }
   }
 
   Future<void> _loadDreams() async {
     try {
       setState(() => _isLoading = true);
-      print('Iniziando caricamento sogni...');
+  debugPrint('Iniziando caricamento sogni...');
       final dreams = await _storageService.getSavedDreams();
-      print('Sogni caricati: ${dreams.length}');
+  debugPrint('Sogni caricati: ${dreams.length}');
       setState(() {
         _dreams = dreams;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
       setState(() => _isLoading = false);
-      print('Errore dettagliato nel caricamento sogni:');
-      print('Tipo errore: ${e.runtimeType}');
-      print('Messaggio: $e');
-      print('Stack trace: $stackTrace');
+  debugPrint('Errore dettagliato nel caricamento sogni:');
+  debugPrint('Tipo errore: ${e.runtimeType}');
+  debugPrint('Messaggio: $e');
+  debugPrint('$stackTrace');
 
       if (mounted) {
         // Mostra un dialog con opzioni per gestire l'errore
@@ -84,32 +104,30 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                 onPressed: () async {
                   Navigator.of(context).pop();
                   try {
-                    print('Pulizia dati corrotti...');
+                    debugPrint('Pulizia dati corrotti...');
                     await _storageService.clearCorruptedData();
-                    print('Dati puliti, ricaricamento...');
+                    debugPrint('Dati puliti, ricaricamento...');
                     _loadDreams();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Dati corrotti puliti. I sogni precedenti sono stati rimossi.',
-                          ),
-                          backgroundColor: Colors.green,
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Dati corrotti puliti. I sogni precedenti sono stati rimossi.',
                         ),
-                      );
-                    }
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   } catch (clearError) {
-                    print('Errore durante la pulizia: $clearError');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Errore durante la pulizia: $clearError',
-                          ),
-                          backgroundColor: Colors.red,
+                    debugPrint('Errore durante la pulizia: $clearError');
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Errore durante la pulizia: $clearError',
                         ),
-                      );
-                    }
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
                 },
                 style: TextButton.styleFrom(foregroundColor: Colors.orange),
@@ -284,9 +302,52 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
         ),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _dreams.isEmpty
-            ? _buildEmptyState(localizations, theme)
-            : _buildDreamsList(localizations, theme),
+            : ((_dreams.isEmpty && !_showFavorites) || (_favoriteDreams.isEmpty && _showFavorites))
+                ? _buildEmptyState(localizations, theme)
+                : Column(
+                    children: [
+                      // Toggle between All / Favorites
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => setState(() {
+                                  _showFavorites = false;
+                                }),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: _showFavorites
+                                      ? theme.colorScheme.onSurface
+                                      : theme.colorScheme.primary,
+                                ),
+                                child: Text('Tutti'),
+                              ),
+                            ),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () async {
+                                  await _loadFavorites();
+                                  setState(() {
+                                    _showFavorites = true;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: _showFavorites
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                                ),
+                                child: Text('Preferiti'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildDreamsList(localizations, theme),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -324,9 +385,9 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
   Widget _buildDreamsList(AppLocalizations localizations, ThemeData theme) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _dreams.length,
+      itemCount: (_showFavorites ? _favoriteDreams : _dreams).length,
       itemBuilder: (context, index) {
-        final dream = _dreams[index];
+        final dream = (_showFavorites ? _favoriteDreams : _dreams)[index];
         return _buildDreamCard(dream, localizations, theme);
       },
     );
@@ -379,6 +440,36 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Pulsante preferito
+                      IconButton(
+                        onPressed: () async {
+                          try {
+                            final added = await _favoritesService.toggleFavorite(dream);
+                            await _loadFavorites();
+                            if (mounted) {
+                              setState(() {
+                                if (added) {
+                                  _favoriteIds.add(dream.id);
+                                } else {
+                                  _favoriteIds.remove(dream.id);
+                                }
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(added
+                                      ? 'Aggiunto ai preferiti'
+                                      : 'Rimosso dai preferiti'),
+                                ),
+                              );
+                            }
+                          } catch (_) {}
+                        },
+                        icon: Icon(
+                          _favoriteIds.contains(dream.id) ? Icons.star : Icons.star_border,
+                          color: _favoriteIds.contains(dream.id) ? Colors.amber : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                        tooltip: _favoriteIds.contains(dream.id) ? 'Rimosso dai preferiti' : 'Aggiungi ai preferiti',
+                      ),
                       // Pulsante condivisione community
                       IconButton(
                         onPressed: () => _toggleCommunitySharing(dream),

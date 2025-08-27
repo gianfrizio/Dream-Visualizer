@@ -161,7 +161,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       // Carica i dati sociali (like e commenti) per tutti i sogni
       _loadSocialData();
     } catch (e) {
-      print('Errore caricamento sogni: $e');
+      debugPrint('Errore caricamento sogni: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -173,7 +173,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         _favoriteDreams = favorites;
       });
     } catch (e) {
-      print('Errore caricamento preferiti: $e');
+      debugPrint('Errore caricamento preferiti: $e');
     }
   }
 
@@ -196,7 +196,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         // Carica i dati dei like per i commenti di questo sogno
         await _loadCommentLikesData(comments);
       } catch (e) {
-        print('Errore caricamento dati sociali per sogno ${dream.id}: $e');
+        debugPrint('Errore caricamento dati sociali per sogno ${dream.id}: $e');
       }
     }
   }
@@ -218,7 +218,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           });
         }
       } catch (e) {
-        print('Errore caricamento like commento ${comment['id']}: $e');
+        debugPrint('Errore caricamento like commento ${comment['id']}: $e');
       }
     }
   }
@@ -814,7 +814,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   }
 
   void _showShareDreamDialog([SavedDream? dream]) {
-    print('Debug: _showShareDreamDialog chiamata con dream: ${dream?.id}');
+    debugPrint('Debug: _showShareDreamDialog chiamata con dream: ${dream?.id}');
 
     showDialog(
       context: context,
@@ -924,7 +924,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
 
   Future<void> _shareDreamWithCommunity(SavedDream dream) async {
     try {
-      print('Debug: Condivisione sogno ${dream.title}');
+      debugPrint('Debug: Condivisione sogno ${dream.title}');
 
       // Usa il metodo specifico per aggiornare solo lo stato di condivisione
       await _dreamStorage.updateDreamSharingStatus(dream.id, true);
@@ -955,10 +955,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         );
         if (communityIndex == -1) {
           _communityDreams.add(updatedDream);
-          print('Debug: Sogno ${dream.title} aggiunto alla community');
+          debugPrint('Debug: Sogno ${dream.title} aggiunto alla community');
         } else {
           _communityDreams[communityIndex] = updatedDream;
-          print('Debug: Sogno ${dream.title} aggiornato nella community');
+          debugPrint('Debug: Sogno ${dream.title} aggiornato nella community');
         }
 
         // Riapplica i filtri per aggiornare la lista visualizzata
@@ -978,7 +978,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         );
       }
     } catch (e) {
-      print('Errore condivisione sogno: $e');
+      debugPrint('Errore condivisione sogno: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -996,7 +996,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
 
   Future<void> _unshareDreamFromCommunity(SavedDream dream) async {
     try {
-      print('Debug: Rimozione condivisione sogno ${dream.title}');
+      debugPrint('Debug: Rimozione condivisione sogno ${dream.title}');
 
       // Usa il metodo specifico per aggiornare solo lo stato di condivisione
       await _dreamStorage.updateDreamSharingStatus(dream.id, false);
@@ -1019,7 +1019,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         final userIndex = _userDreams.indexWhere((d) => d.id == dream.id);
         if (userIndex != -1) {
           _userDreams[userIndex] = updatedDream;
-          print(
+          debugPrint(
             'Debug: Sogno ${dream.title} rimosso dalla condivisione nei sogni utente',
           );
         }
@@ -1027,7 +1027,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         // Rimuovi dalla lista dei sogni della community
         final removedCount = _communityDreams.length;
         _communityDreams.removeWhere((d) => d.id == dream.id);
-        print(
+        debugPrint(
           'Debug: Rimossi ${removedCount - _communityDreams.length} sogni dalla community con ID ${dream.id}',
         );
 
@@ -1048,7 +1048,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         );
       }
     } catch (e) {
-      print('Errore rimozione condivisione sogno: $e');
+      debugPrint('Errore rimozione condivisione sogno: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1077,7 +1077,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         _commentsUpdateCounter++;
       });
     } catch (e) {
-      print('Errore caricamento dati commenti: $e');
+      debugPrint('Errore caricamento dati commenti: $e');
     }
 
     showDialog(
@@ -1398,7 +1398,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       Navigator.of(context).pop();
       _showCommentsDialog(dream);
     } catch (e) {
-      print('Errore aggiunta commento: $e');
+      debugPrint('Errore aggiunta commento: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1419,7 +1419,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       uniqueDreams[dream.id] = dream;
     }
     _communityDreams = uniqueDreams.values.toList();
-    print(
+    debugPrint(
       'Debug: Community dreams dopo rimozione duplicati: ${_communityDreams.length}',
     );
   }
@@ -1598,7 +1598,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         ),
       );
     } catch (e) {
-      print('Errore toggle like: $e');
+      debugPrint('Errore toggle like: $e');
     }
   }
 
@@ -1629,7 +1629,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         ),
       );
     } catch (e) {
-      print('Errore toggle preferiti: $e');
+      debugPrint('Errore toggle preferiti: $e');
     }
   }
 
@@ -1642,14 +1642,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
     if (commentId == null) return;
 
     try {
-      print('Debug: Toggling like for comment $commentId');
-      print(
+      debugPrint('Debug: Toggling like for comment $commentId');
+      debugPrint(
         'Debug: Current state - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
       );
 
       final result = await _socialService.toggleCommentLike(commentId);
 
-      print(
+      debugPrint(
         'Debug: Service result - isLiked: ${result['isLiked']}, likeCount: ${result['likeCount']}',
       );
 
@@ -1666,7 +1666,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         });
       }
 
-      print(
+      debugPrint(
         'Debug: New state - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
       );
 
@@ -1687,12 +1687,12 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
 
       // Verifica dopo un breve delay che i valori siano ancora corretti
       Future.delayed(Duration(milliseconds: 100), () {
-        print(
+        debugPrint(
           'Debug: Verification - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
         );
       });
     } catch (e) {
-      print('Errore toggle like commento: $e');
+      debugPrint('Errore toggle like commento: $e');
     }
   }
 
@@ -1952,7 +1952,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           );
         }
       } catch (e) {
-        print('Errore eliminazione commento: $e');
+        debugPrint('Errore eliminazione commento: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

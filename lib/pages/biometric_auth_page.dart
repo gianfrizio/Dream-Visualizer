@@ -41,20 +41,20 @@ Available Biometrics: $availableBiometrics
 ''';
       });
 
-      print('BiometricAuthPage - DEBUG TEST:');
-      print('Device Supported: $isDeviceSupported');
-      print('Can Check Biometrics: $canCheckBiometrics');
-      print('Available Biometrics: $availableBiometrics');
+      debugPrint('BiometricAuthPage - DEBUG TEST:');
+      debugPrint('Device Supported: $isDeviceSupported');
+      debugPrint('Can Check Biometrics: $canCheckBiometrics');
+      debugPrint('Available Biometrics: $availableBiometrics');
     } catch (e) {
       setState(() {
         _debugText = 'ERROR: $e';
       });
-      print('BiometricAuthPage - ERROR: $e');
+      debugPrint('BiometricAuthPage - ERROR: $e');
     }
   }
 
   Future<void> _handleTestDirect() async {
-    print('BiometricAuthPage: _handleTestDirect called');
+    debugPrint('BiometricAuthPage: _handleTestDirect called');
 
     if (_isAuthenticating) return;
 
@@ -63,13 +63,13 @@ Available Biometrics: $availableBiometrics
     });
 
     try {
-      print('BiometricAuthPage: Starting simple authentication test...');
+      debugPrint('BiometricAuthPage: Starting simple authentication test...');
 
       final result = await _localAuth.authenticate(
         localizedReason: 'Test semplice - autenticazione biometrica',
       );
 
-      print('BiometricAuthPage: Simple auth result - $result');
+      debugPrint('BiometricAuthPage: Simple auth result - $result');
 
       if (result) {
         // Successo - chiudi la pagina
@@ -88,7 +88,7 @@ Available Biometrics: $availableBiometrics
         }
       }
     } on PlatformException catch (e) {
-      print('BiometricAuthPage: PlatformException - ${e.code}: ${e.message}');
+      debugPrint('BiometricAuthPage: PlatformException - ${e.code}: ${e.message}');
 
       if (mounted) {
         if (e.code == 'no_fragment_activity') {
@@ -125,7 +125,7 @@ Available Biometrics: $availableBiometrics
         }
       }
     } catch (e) {
-      print('BiometricAuthPage: General error - $e');
+      debugPrint('BiometricAuthPage: General error - $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -144,7 +144,7 @@ Available Biometrics: $availableBiometrics
   }
 
   void _handleAccessWithoutBiometric() {
-    print('BiometricAuthPage: _handleAccessWithoutBiometric called');
+    debugPrint('BiometricAuthPage: _handleAccessWithoutBiometric called');
 
     showDialog(
       context: context,
@@ -170,7 +170,7 @@ Available Biometrics: $availableBiometrics
                 Navigator.pop(context); // Chiudi dialog
                 Navigator.of(context).pop(true); // Accesso consentito
               } catch (e) {
-                print('Error disabling biometric: $e');
+                debugPrint('Error disabling biometric: $e');
                 Navigator.pop(context); // Chiudi dialog comunque
                 Navigator.of(context).pop(true); // Accesso consentito comunque
               }
@@ -195,7 +195,7 @@ Available Biometrics: $availableBiometrics
     try {
       // Prima controlla se l'autenticazione biometrica è supportata
       final isSupported = await biometricService.checkBiometricSupport();
-      print('BiometricAuthPage: Biometric support check - $isSupported');
+      debugPrint('BiometricAuthPage: Biometric support check - $isSupported');
 
       if (!isSupported) {
         if (mounted) {
@@ -214,7 +214,7 @@ Available Biometrics: $availableBiometrics
       // Controlla i metodi biometrici disponibili
       final availableBiometrics = await biometricService
           .getAvailableBiometrics();
-      print('BiometricAuthPage: Available biometrics - $availableBiometrics');
+      debugPrint('BiometricAuthPage: Available biometrics - $availableBiometrics');
 
       if (availableBiometrics.isEmpty) {
         if (mounted) {
@@ -258,7 +258,7 @@ Available Biometrics: $availableBiometrics
                 onPressed: () async {
                   final debugInfo = await biometricService
                       .getDetailedBiometricStatus();
-                  print('Debug Info: $debugInfo');
+                  debugPrint('Debug Info: $debugInfo');
                   if (mounted) {
                     showDialog(
                       context: context,
@@ -282,7 +282,7 @@ Available Biometrics: $availableBiometrics
       }
     } catch (e) {
       // Errore durante l'autenticazione
-      print('BiometricAuthPage: Error during authentication - $e');
+      debugPrint('BiometricAuthPage: Error during authentication - $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -423,13 +423,13 @@ Available Biometrics: $availableBiometrics
     });
 
     try {
-      print('BiometricAuthPage: Starting direct auth test...');
+      debugPrint('BiometricAuthPage: Starting direct auth test...');
 
       final result = await _localAuth.authenticate(
         localizedReason: 'Test diretto autenticazione biometrica',
       );
 
-      print('BiometricAuthPage: Direct auth result - $result');
+      debugPrint('BiometricAuthPage: Direct auth result - $result');
 
       if (result && mounted) {
         Navigator.of(context).pop(true);
@@ -442,7 +442,7 @@ Available Biometrics: $availableBiometrics
         );
       }
     } on PlatformException catch (e) {
-      print(
+      debugPrint(
         'BiometricAuthPage: Direct auth PlatformException - ${e.code}: ${e.message}',
       );
 
@@ -479,7 +479,7 @@ Available Biometrics: $availableBiometrics
         );
       }
     } catch (e) {
-      print('BiometricAuthPage: Direct auth error - $e');
+      debugPrint('BiometricAuthPage: Direct auth error - $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Errore test diretto: $e'),

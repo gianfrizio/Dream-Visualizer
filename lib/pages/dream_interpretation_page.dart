@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import '../openai_service.dart';
 import '../l10n/app_localizations.dart';
 import '../services/language_service.dart';
@@ -9,7 +10,9 @@ import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
 import '../services/image_cache_service.dart';
 import '../services/notification_service.dart';
+import '../services/favorites_service.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../widgets/global_bottom_menu.dart';
 
 class DreamInterpretationPage extends StatefulWidget {
   final String dreamText;
@@ -23,6 +26,163 @@ class DreamInterpretationPage extends StatefulWidget {
   @override
   _DreamInterpretationPageState createState() =>
       _DreamInterpretationPageState();
+}
+
+// Overlay widget that animates a star icon from start -> end.
+class _StarAnimationOverlay extends StatefulWidget {
+  final Offset start;
+  final Offset end;
+  const _StarAnimationOverlay({required this.start, required this.end});
+
+  @override
+  State<_StarAnimationOverlay> createState() => _StarAnimationOverlayState();
+}
+
+class _StarAnimationOverlayState extends State<_StarAnimationOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  // We'll compute the position along a cubic Bezier in build to create a smooth arc.
+  late final Animation<double> _anim;
+  late final Animation<double> _scale;
+  late Offset _c1;
+  late Offset _c2;
+
+  @override
+  void initState() {
+    super.initState();
+    // Longer duration for a calmer, more readable motion
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    )..forward();
+
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic);
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.32,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo));
+
+    // Precompute two control points for a cubic Bezier so the star flies on a soft arc
+    final start = widget.start;
+    final end = widget.end;
+    final vec = end - start;
+    final dist = vec.distance;
+    // perpendicular normal (may be zero if vec is zero)
+    final normal = vec == Offset.zero
+        ? Offset(0, -1)
+        : Offset(-vec.dy / dist, vec.dx / dist);
+    // control points placed along the segment with outward offset proportional to distance
+    _c1 = start + vec * 0.28 + normal * (min(160.0, dist * 0.18));
+    _c2 = start + vec * 0.68 + normal * (min(80.0, dist * 0.06));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        final t = _anim.value; // 0..1 eased
+        // Cubic Bezier interpolation
+        Offset cubicBezier(Offset a, Offset b, Offset c, Offset d, double t) {
+          final u = 1 - t;
+          final p =
+              a * (u * u * u) +
+              b * (3 * u * u * t) +
+              c * (3 * u * t * t) +
+              d * (t * t * t);
+          return p;
+        }
+
+        final pos = cubicBezier(widget.start, _c1, _c2, widget.end, t);
+        final scale = _scale.value;
+
+        // slight rotation while flying
+        final rotation = (pi * 0.6) * Curves.easeInOut.transform(t);
+
+        // glow behind the star to create a trail impression
+        final glow = Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                Colors.amber.withOpacity(0.28 * (1 - t)),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        );
+
+        // Small debug markers at start/end to make it obvious when animation runs
+        final startMarker = Positioned(
+          left: widget.start.dx - 6,
+          top: widget.start.dy - 6,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+          ),
+        );
+
+        final endMarker = Positioned(
+          left: widget.end.dx - 8,
+          top: widget.end.dy - 8,
+          child: Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.22),
+              shape: BoxShape.circle,
+            ),
+          ),
+        );
+
+        return Stack(
+          children: [
+            startMarker,
+            endMarker,
+            Positioned(
+              left: pos.dx - 24,
+              top: pos.dy - 24,
+              child: Transform.rotate(
+                angle: rotation,
+                child: Transform.scale(
+                  scale: scale,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      glow,
+                      Icon(
+                        Icons.star,
+                        size: 44,
+                        color: Colors.amber.withOpacity(0.98),
+                        shadows: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.18 * (1 - t)),
+                            blurRadius: 14,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _DreamInterpretationPageState extends State<DreamInterpretationPage>
@@ -42,6 +202,10 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
   bool _isComplete = false;
   bool _resumedFromPending = false;
   bool _isSaved = false;
+  String? _lastSavedDreamId;
+  final FavoritesService _favoritesService = FavoritesService();
+  // Controls whether the inline advice is expanded (collapsible box)
+  bool _isAdviceExpanded = false;
   @override
   void dispose() {
     _sleepAnimationController.dispose();
@@ -649,6 +813,16 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
           _localImagePath = localImagePath;
         });
       }
+      // Remember the last saved dream id so subsequent favorite toggles reference it
+      _lastSavedDreamId = dreamId;
+
+      // Play the star-flying animation toward the history button after the
+      // current frame so we don't use BuildContext across async gaps.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _launchStarAnimation(context, true);
+        }
+      });
       // If we have a local image, show completion notification
       if (localImagePath != null && localImagePath.isNotEmpty) {
         try {
@@ -660,7 +834,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
         } catch (_) {}
       }
     } catch (e) {
-      print('Errore nel salvataggio automatico: $e');
+      debugPrint('Errore nel salvataggio automatico: $e');
     }
   }
 
@@ -999,29 +1173,69 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                   const SizedBox(height: 14),
 
                   // Advice inline (no surrounding box) — icon + text
+                  // Collapsible advice row: tap to expand/collapse the full text
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            localizations.doNotLeaveDuringInterpretation,
-                            style: TextStyle(
-                              color: theme.colorScheme.onBackground.withOpacity(
-                                0.88,
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        _isAdviceExpanded = !_isAdviceExpanded;
+                      }),
+                      borderRadius: BorderRadius.circular(8),
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 540),
+                              child: AnimatedCrossFade(
+                                firstChild: Text(
+                                  localizations.doNotLeaveDuringInterpretation,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onBackground
+                                        .withOpacity(0.88),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                secondChild: Text(
+                                  localizations.doNotLeaveDuringInterpretation,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onBackground
+                                        .withOpacity(0.88),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                crossFadeState: _isAdviceExpanded
+                                    ? CrossFadeState.showSecond
+                                    : CrossFadeState.showFirst,
+                                duration: const Duration(milliseconds: 200),
+                                firstCurve: Curves.easeInOut,
+                                secondCurve: Curves.easeInOut,
                               ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              _isAdviceExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 20,
+                              color: theme.colorScheme.onBackground.withOpacity(
+                                0.6,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
@@ -1179,7 +1393,63 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    _imageCard(theme, localizations),
+                                    Stack(
+                                      children: [
+                                        _imageCard(theme, localizations),
+                                        // Favorite action overlay in top-right of image card
+                                        Positioned(
+                                          right: 12,
+                                          top: 12,
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: IconButton(
+                                              onPressed: () async {
+                                                // If we have a saved dream id, toggle favorite and animate
+                                                if (_lastSavedDreamId == null) {
+                                                  // fallback: create a SavedDream instance of current content
+                                                  final dreamId = DateTime.now()
+                                                      .millisecondsSinceEpoch
+                                                      .toString();
+                                                  _lastSavedDreamId = dreamId;
+                                                }
+                                                // Create a minimal SavedDream to persist
+                                                final dream = SavedDream(
+                                                  id:
+                                                      _lastSavedDreamId ??
+                                                      DateTime.now()
+                                                          .millisecondsSinceEpoch
+                                                          .toString(),
+                                                  dreamText: widget.dreamText,
+                                                  interpretation:
+                                                      _interpretation,
+                                                  imageUrl: _imageUrl,
+                                                  localImagePath:
+                                                      _localImagePath,
+                                                  createdAt: DateTime.now(),
+                                                  title: _generateTitle(
+                                                    widget.dreamText,
+                                                  ),
+                                                  tags: [],
+                                                );
+
+                                                final added =
+                                                    await _favoritesService
+                                                        .toggleFavorite(dream);
+                                                // show a small animation: star flying to bottom-left corner (approximate)
+                                                _launchStarAnimation(
+                                                  context,
+                                                  added,
+                                                );
+                                              },
+                                              icon: Icon(
+                                                Icons.star_border,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ],
                               ),
@@ -1339,5 +1609,76 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
               ),
       ),
     );
+  }
+
+  // Simple flying star animation using an OverlayEntry. The target position is
+  // approximated to the bottom-left area where the history/favorites button is.
+  void _launchStarAnimation(BuildContext context, bool added) {
+    // Prefer inserting into the root overlay so the entry is painted above
+    // any app-level stacks the builder may create. Fall back to the nearest
+    // overlay if rootOverlay isn't available.
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final size = MediaQuery.of(context).size;
+
+    final start = Offset(size.width * 0.75, size.height * 0.4);
+
+    // Try to resolve the exact target from the history button's global key
+    Offset end = Offset(size.width * 0.12, size.height * 0.92);
+    try {
+      final renderBox =
+          historyButtonKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final targetPos = renderBox.localToGlobal(
+          renderBox.size.center(Offset.zero),
+        );
+        end = targetPos;
+      } else {
+        debugPrint(
+          'launchStarAnimation: historyButtonKey.renderBox == null, using fallback end=$end',
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        'launchStarAnimation: failed to compute history button position: $e — using fallback end=$end',
+      );
+    }
+
+    // Overlay.of with rootOverlay=true is expected to return a valid OverlayState
+    // in normal app execution; proceed assuming it's available.
+
+    debugPrint('launchStarAnimation: start=$start end=$end');
+
+    final entry = OverlayEntry(
+      builder: (context) {
+        // IgnorePointer ensures the temporary overlay doesn't block user input.
+        return IgnorePointer(
+          ignoring: true,
+          child: Stack(
+            children: [
+              Positioned.fill(child: Container(color: Colors.transparent)),
+              _StarAnimationOverlay(start: start, end: end),
+            ],
+          ),
+        );
+      },
+    );
+
+    overlay.insert(entry);
+
+    // Remove after animation duration (controller now 1300ms) with small buffer
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      try {
+        entry.remove();
+      } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              added ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti',
+            ),
+          ),
+        );
+      }
+    });
   }
 }

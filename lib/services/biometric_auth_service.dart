@@ -32,19 +32,19 @@ class BiometricAuthService extends ChangeNotifier {
 
   Future<bool> checkBiometricSupport() async {
     try {
-      print('BiometricAuthService: Checking device support...');
+      debugPrint('BiometricAuthService: Checking device support...');
       final isDeviceSupported = await _localAuth.isDeviceSupported();
-      print('BiometricAuthService: Device supported - $isDeviceSupported');
+      debugPrint('BiometricAuthService: Device supported - $isDeviceSupported');
 
       final canCheckBiometrics = await _localAuth.canCheckBiometrics;
-      print('BiometricAuthService: Can check biometrics - $canCheckBiometrics');
+      debugPrint('BiometricAuthService: Can check biometrics - $canCheckBiometrics');
 
       final result = isDeviceSupported && canCheckBiometrics;
-      print('BiometricAuthService: Final support result - $result');
+      debugPrint('BiometricAuthService: Final support result - $result');
 
       return result;
     } catch (e) {
-      print('BiometricAuthService: Error checking biometric support: $e');
+      debugPrint('BiometricAuthService: Error checking biometric support: $e');
       return false;
     }
   }
@@ -53,34 +53,34 @@ class BiometricAuthService extends ChangeNotifier {
     try {
       return await _localAuth.getAvailableBiometrics();
     } catch (e) {
-      print('Error getting available biometrics: $e');
+      debugPrint('Error getting available biometrics: $e');
       return [];
     }
   }
 
   Future<bool> authenticate({String? reason}) async {
-    print('BiometricAuthService: Starting authentication...');
+    debugPrint('BiometricAuthService: Starting authentication...');
 
     try {
       final isSupported = await checkBiometricSupport();
-      print('BiometricAuthService: Biometric support check - $isSupported');
+      debugPrint('BiometricAuthService: Biometric support check - $isSupported');
 
       if (!isSupported) {
-        print('BiometricAuthService: Biometric not supported');
+        debugPrint('BiometricAuthService: Biometric not supported');
         return false;
       }
 
       final availableBiometrics = await getAvailableBiometrics();
-      print(
+      debugPrint(
         'BiometricAuthService: Available biometrics - $availableBiometrics',
       );
 
       if (availableBiometrics.isEmpty) {
-        print('BiometricAuthService: No biometric methods available');
+        debugPrint('BiometricAuthService: No biometric methods available');
         return false;
       }
 
-      print('BiometricAuthService: Calling _localAuth.authenticate...');
+      debugPrint('BiometricAuthService: Calling _localAuth.authenticate...');
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: reason ?? 'Autenticati per accedere ai tuoi sogni',
         options: const AuthenticationOptions(
@@ -90,27 +90,27 @@ class BiometricAuthService extends ChangeNotifier {
         ),
       );
 
-      print('BiometricAuthService: Authentication result - $didAuthenticate');
+      debugPrint('BiometricAuthService: Authentication result - $didAuthenticate');
 
       if (didAuthenticate) {
         _isAuthenticated = true;
         _lastAuthTime = DateTime.now();
         await _saveLastAuthTime();
         notifyListeners();
-        print(
+        debugPrint(
           'BiometricAuthService: Authentication successful, session updated',
         );
       }
 
       return didAuthenticate;
     } on PlatformException catch (e) {
-      print(
+      debugPrint(
         'BiometricAuthService: PlatformException - ${e.code}: ${e.message}',
       );
 
       // Se si verifica l'errore no_fragment_activity, disabilita automaticamente l'autenticazione biometrica
       if (e.code == 'no_fragment_activity' || e.code.contains('fragment')) {
-        print(
+        debugPrint(
           'BiometricAuthService: Fragment activity error detected, disabling biometric auth',
         );
         await _handleFragmentActivityError();
@@ -119,14 +119,14 @@ class BiometricAuthService extends ChangeNotifier {
 
       return false;
     } catch (e) {
-      print('BiometricAuthService: General error - $e');
+      debugPrint('BiometricAuthService: General error - $e');
       return false;
     }
   }
 
   // Gestisce l'errore di fragment activity disabilitando automaticamente l'autenticazione biometrica
   Future<void> _handleFragmentActivityError() async {
-    print(
+    debugPrint(
       'BiometricAuthService: Handling fragment activity error by disabling biometric auth',
     );
     final prefs = await SharedPreferences.getInstance();
@@ -230,7 +230,7 @@ Biometric Status Debug:
 
   // Metodo di test alternativo per debug
   Future<bool> testAuthenticate() async {
-    print('BiometricAuthService: Starting TEST authentication...');
+    debugPrint('BiometricAuthService: Starting TEST authentication...');
 
     try {
       // Test più semplice senza opzioni complesse
@@ -238,12 +238,12 @@ Biometric Status Debug:
         localizedReason: 'Test autenticazione biometrica',
       );
 
-      print(
+      debugPrint(
         'BiometricAuthService: TEST Authentication result - $didAuthenticate',
       );
       return didAuthenticate;
     } catch (e) {
-      print('BiometricAuthService: TEST Authentication error - $e');
+      debugPrint('BiometricAuthService: TEST Authentication error - $e');
       return false;
     }
   }

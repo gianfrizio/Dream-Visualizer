@@ -18,6 +18,8 @@ import 'l10n/app_localizations.dart';
 import 'services/notification_service.dart';
 import 'widgets/starry_background.dart';
 import 'widgets/global_bottom_menu.dart';
+import 'widgets/tap_sparkle.dart';
+import 'widgets/foreground_stars.dart';
 
 // Temporary global notifier used for debugging touch events on-device.
 // Set to an Offset when a pointer down occurs and cleared shortly after.
@@ -102,21 +104,19 @@ class DreamApp extends StatelessWidget {
             // On light backgrounds we need a stronger star overlay so stars
             // remain visible; increase opacity for light theme only.
             // Raised to make stars more prominent on pale backgrounds.
-            final overlayOpacity = isDark ? 0.14 : 0.45;
+            final overlayOpacity = isDark ? 0.14 : 0.32;
 
-            // Allow content to extend under the global bottom menu.
-            // We intentionally do not add extra bottom padding here so full-
-            // bleed backgrounds remain continuous up to the bottom edge.
+            // Reserve only the system bottom inset so content can extend
+            // right up to the global menu. Avoid adding extra fixed height
+            // which produced a visible gap on some devices.
+            final double _globalMenuExtraHeight = 0.0;
+            final double _menuInset =
+                MediaQuery.of(context).viewPadding.bottom +
+                _globalMenuExtraHeight;
 
             return Stack(
               children: [
-                if (child != null)
-                  // Allow the app content (including full-bleed gradients) to
-                  // extend under the global bottom menu. The menu will be
-                  // rendered on top and should be transparent or semi-transparent
-                  // so no hard seam appears. Individual pages should still
-                  // respect SafeArea / viewInsets for interactive controls.
-                  Positioned.fill(child: child),
+                // Starry background under content
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
@@ -125,6 +125,20 @@ class DreamApp extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                if (child != null)
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: _menuInset),
+                      child: child,
+                    ),
+                  ),
+
+                // Lightweight foreground stars (centers only) painted above
+                // the content so approaching stars are visible and appear to
+                // come toward the viewer without soft halos that could blur UI.
+                Positioned.fill(child: IgnorePointer(child: ForegroundStars())),
+
                 // Global bottom menu overlay: let the menu size itself and sit above
                 // system insets. Use SafeArea(top: false) so it respects the bottom
                 // inset (navigation bar) and isn't clipped by a hard height.
@@ -136,7 +150,9 @@ class DreamApp extends StatelessWidget {
                     behavior: HitTestBehavior.translucent,
                     onPointerDown: (ev) {
                       // Debug: log pointer events that hit the overlay container
-                      print('Overlay Listener: pointer down at ${ev.position}');
+                      debugPrint(
+                        'Overlay Listener: pointer down at ${ev.position}',
+                      );
 
                       // Update the global touch notifier so a visual indicator
                       // can be shown on-device. Clear it after a short delay.
@@ -166,6 +182,23 @@ class DreamApp extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                ),
+
+                // Global top-most listener to spawn tap sparkles without
+                // intercepting pointer events. HitTestBehavior.translucent
+                // ensures events still reach widgets below. Placed last so
+                // it is painted on top and receives pointer events first.
+                Positioned.fill(
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (ev) {
+                      try {
+                        // Show a sparkle overlay at the global pointer location
+                        showTapSparkle(context, ev.position);
+                      } catch (_) {}
+                    },
+                    child: const SizedBox.expand(),
                   ),
                 ),
                 // NOTE: visual touch indicator removed for production. Listener still logs pointer events.
@@ -265,6 +298,8 @@ class _DreamHomePageState extends State<DreamHomePage>
   bool _speechAvailable = false; // New: tracks speech availability
   DateTime _lastUpdateTime = DateTime.now(); // New: tracks last update
   bool _dreamSaved = false; // Traccia se il sogno corrente è stato salvato
+  bool _suggestionsExpanded =
+      true; // Collapsible state for the suggestions box (start expanded)
 
   @override
   void initState() {
@@ -332,7 +367,7 @@ class _DreamHomePageState extends State<DreamHomePage>
 
       await prefs.setBool(_kNotifiedPromptKey, true);
     } catch (e) {
-      print('Error showing notification prompt: $e');
+      debugPrint('Error showing notification prompt: $e');
     }
   }
 
@@ -391,14 +426,14 @@ class _DreamHomePageState extends State<DreamHomePage>
   void _initSpeech() async {
     _speechAvailable = await _speech.initialize(
       onError: (error) {
-        print('Speech error: $error');
+        debugPrint('Speech error: $error');
         // Automatically restart in case of error
         if (_isListening) {
           _restartListeningIfStuck();
         }
       },
       onStatus: (status) {
-        print('Speech status: $status');
+        debugPrint('Speech status: $status');
         if (status == 'notListening' && _isListening) {
           // If it should be listening but isn't, restart
           _restartListeningIfStuck();
@@ -588,7 +623,7 @@ class _DreamHomePageState extends State<DreamHomePage>
 
         // If there are no updates for more than 8 seconds, restart
         if (timeSinceLastUpdate > 8) {
-          print(
+          debugPrint(
             'Watchdog: Nessun aggiornamento da $timeSinceLastUpdate secondi, riavvio...',
           );
           _restartListeningIfStuck();
@@ -600,7 +635,7 @@ class _DreamHomePageState extends State<DreamHomePage>
           _noChangeCount++;
           if (_noChangeCount >= 2) {
             // Reduced from 3 to 2 (6 seconds total)
-            print(
+            debugPrint(
               'Watchdog: Testo non cambia da ${_noChangeCount * 3} secondi, riavvio...',
             );
             _restartListeningIfStuck();
@@ -613,7 +648,9 @@ class _DreamHomePageState extends State<DreamHomePage>
 
         // Also check the recognition state
         if (!_speech.isListening && _isListening) {
-          print('Watchdog: Speech non sta ascoltendo ma dovrebbe, riavvio...');
+          debugPrint(
+            'Watchdog: Speech non sta ascoltendo ma dovrebbe, riavvio...',
+          );
           _restartListeningIfStuck();
         }
       }
@@ -687,7 +724,7 @@ class _DreamHomePageState extends State<DreamHomePage>
       await _audioPlayer.play(BytesSource(Uint8List.fromList(data)));
     } catch (e) {
       // fallback: do nothing
-      print('Errore riproduzione beep: $e');
+      debugPrint('Errore riproduzione beep: $e');
     }
   }
 
@@ -713,7 +750,7 @@ class _DreamHomePageState extends State<DreamHomePage>
   void _restartListeningIfStuck() async {
     if (!_isListening) return;
 
-    print('Restarting voice recognition...');
+    debugPrint('Restarting voice recognition...');
 
     // Save all current text as confirmed, but only if it's not already confirmed
     String tempText = _transcription.trim();
@@ -1288,28 +1325,57 @@ class _DreamHomePageState extends State<DreamHomePage>
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Text(
-                      localizations.suggestions,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            localizations.suggestions,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        // Toggle button to collapse/expand the suggestions box
+                        GestureDetector(
+                          onTap: () => setState(
+                            () => _suggestionsExpanded = !_suggestionsExpanded,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Icon(
+                              _suggestionsExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  _interpretation,
-                  style: const TextStyle(fontSize: 15, height: 1.6),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _interpretation,
+                    style: const TextStyle(fontSize: 15, height: 1.6),
+                    maxLines: _suggestionsExpanded ? 1000 : 3,
+                    overflow: _suggestionsExpanded
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],

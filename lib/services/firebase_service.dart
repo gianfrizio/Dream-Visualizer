@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/saved_dream.dart';
 
 class FirebaseService {
@@ -42,7 +43,7 @@ class FirebaseService {
 
       return user.uid;
     } catch (e) {
-      print('Firebase not available, using local user ID: $e');
+  debugPrint('Firebase not available, using local user ID: $e');
       _isFirebaseAvailable = false;
       // Fallback: usa un ID locale fisso
       return 'local_user_${DateTime.now().millisecondsSinceEpoch}';
@@ -76,9 +77,9 @@ class FirebaseService {
           .collection(_dreamsCollection)
           .doc(dream.id)
           .set(dreamData);
-      print('Dream ${dream.id} shared to community');
+  debugPrint('Dream ${dream.id} shared to community');
     } catch (e) {
-      print('Error sharing dream: $e');
+  debugPrint('Error sharing dream: $e');
       throw e;
     }
   }
@@ -91,9 +92,9 @@ class FirebaseService {
       // Also delete associated comments and likes
       await _deleteAssociatedData(dreamId);
 
-      print('Dream $dreamId removed from community');
+  debugPrint('Dream $dreamId removed from community');
     } catch (e) {
-      print('Error removing dream: $e');
+  debugPrint('Error removing dream: $e');
       throw e;
     }
   }
@@ -141,7 +142,7 @@ class FirebaseService {
 
       return dreams;
     } catch (e) {
-      print('Error loading community dreams: $e');
+  debugPrint('Error loading community dreams: $e');
       return [];
     }
   }
@@ -190,7 +191,7 @@ class FirebaseService {
 
       return {'isLiked': !isLiked, 'likeCount': likeCount};
     } catch (e) {
-      print('Error toggling dream like: $e');
+  debugPrint('Error toggling dream like: $e');
       throw e;
     }
   }
@@ -204,7 +205,7 @@ class FirebaseService {
           .get();
       return dreamDoc.data()?['likes_count'] ?? 0;
     } catch (e) {
-      print('Error getting dream likes: $e');
+  debugPrint('Error getting dream likes: $e');
       return 0;
     }
   }
@@ -221,7 +222,7 @@ class FirebaseService {
           .get();
       return likeDoc.exists;
     } catch (e) {
-      print('Error checking user like: $e');
+  debugPrint('Error checking user like: $e');
       return false;
     }
   }
@@ -250,9 +251,9 @@ class FirebaseService {
         'comments_count': FieldValue.increment(1),
       });
 
-      print('Comment added to dream $dreamId');
+      debugPrint('Comment added to dream $dreamId');
     } catch (e) {
-      print('Error adding comment: $e');
+      debugPrint('Error adding comment: $e');
       throw e;
     }
   }
@@ -284,7 +285,7 @@ class FirebaseService {
 
       return comments;
     } catch (e) {
-      print('Error loading comments: $e');
+      debugPrint('Error loading comments: $e');
       return [];
     }
   }
@@ -300,7 +301,7 @@ class FirebaseService {
 
       return true;
     } catch (e) {
-      print('Error editing comment: $e');
+      debugPrint('Error editing comment: $e');
       return false;
     }
   }
@@ -317,7 +318,7 @@ class FirebaseService {
 
       return true;
     } catch (e) {
-      print('Error deleting comment: $e');
+      debugPrint('Error deleting comment: $e');
       return false;
     }
   }
@@ -368,7 +369,7 @@ class FirebaseService {
 
       return {'isLiked': !isLiked, 'likeCount': likeCount};
     } catch (e) {
-      print('Error toggling comment like: $e');
+      debugPrint('Error toggling comment like: $e');
       throw e;
     }
   }
@@ -382,7 +383,7 @@ class FirebaseService {
           .get();
       return commentDoc.data()?['likes_count'] ?? 0;
     } catch (e) {
-      print('Error getting comment likes: $e');
+      debugPrint('Error getting comment likes: $e');
       return 0;
     }
   }
@@ -399,7 +400,7 @@ class FirebaseService {
           .get();
       return likeDoc.exists;
     } catch (e) {
-      print('Error checking comment like: $e');
+      debugPrint('Error checking comment like: $e');
       return false;
     }
   }
@@ -429,9 +430,9 @@ class FirebaseService {
         await doc.reference.delete();
       }
 
-      print('Associated data deleted for dream $dreamId');
+      debugPrint('Associated data deleted for dream $dreamId');
     } catch (e) {
-      print('Error deleting associated data: $e');
+      debugPrint('Error deleting associated data: $e');
     }
   }
 
@@ -482,7 +483,7 @@ class FirebaseService {
         await shareDreamToCommunity(dream);
       }
     } catch (e) {
-      print('Error syncing dream to cloud: $e');
+      debugPrint('Error syncing dream to cloud: $e');
     }
   }
 }

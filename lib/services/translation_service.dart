@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class TranslationService {
   static const String _baseUrl = 'https://api.mymemory.translated.net/get';
@@ -182,7 +183,7 @@ class TranslationService {
         '$_baseUrl?q=${Uri.encodeComponent(text)}&langpair=$apiFromLang|$normalizedToLang',
       );
 
-      print('Translation URL: $url'); // Debug
+      debugPrint('Translation URL: $url'); // Debug
 
       final response = await http.get(url);
 
@@ -191,7 +192,7 @@ class TranslationService {
 
         // Controlla se la risposta contiene un errore
         if (data['responseStatus'] != null && data['responseStatus'] != 200) {
-          print('Translation API error: ${data['responseDetails']}');
+          debugPrint('Translation API error: ${data['responseDetails']}');
           return text;
         }
 
@@ -224,10 +225,10 @@ class TranslationService {
         _translationCache[cacheKey] = translatedText;
         return translatedText;
       } else {
-        print('Translation API HTTP error: ${response.statusCode}');
+        debugPrint('Translation API HTTP error: ${response.statusCode}');
       }
     } catch (e) {
-      print('Errore nella traduzione: $e');
+      debugPrint('Errore nella traduzione: $e');
     }
 
     // Se la traduzione fallisce, ritorna il testo originale
@@ -453,14 +454,14 @@ class TranslationService {
       }
     }
 
-    print(
+    debugPrint(
       'Language detection - Italian score: $italianScore, English score: $englishScore',
     );
 
     // Se i punteggi sono molto vicini o bassi, usa italiano come default
     if ((italianScore - englishScore).abs() <= 1 &&
         italianScore + englishScore < 3) {
-      print('Language detection uncertain, defaulting to Italian');
+      debugPrint('Language detection uncertain, defaulting to Italian');
       return 'it'; // Default a italiano invece di 'auto'
     }
 

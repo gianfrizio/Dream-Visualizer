@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/saved_dream.dart';
 import 'image_cache_service.dart';
@@ -18,11 +19,11 @@ class DreamStorageService {
     if (existingIndex != -1) {
       // Aggiorna il sogno esistente
       dreams[existingIndex] = dream;
-      print('Debug: Sogno ${dream.id} aggiornato');
+  debugPrint('Debug: Sogno ${dream.id} aggiornato');
     } else {
       // Aggiungi il nuovo sogno all'inizio della lista
       dreams.insert(0, dream);
-      print('Debug: Nuovo sogno ${dream.id} aggiunto');
+  debugPrint('Debug: Nuovo sogno ${dream.id} aggiunto');
     }
 
     // Converti la lista in JSON
@@ -41,53 +42,53 @@ class DreamStorageService {
     try {
       // Debug: Controlla cosa c'è effettivamente salvato
       final keys = prefs.getKeys();
-      print('Chiavi disponibili: $keys');
+  debugPrint('Chiavi disponibili: $keys');
 
       // Controlla se esiste la chiave
       if (!prefs.containsKey(_dreamsKey)) {
-        print('Nessun dato trovato per la chiave $_dreamsKey');
+        debugPrint('Nessun dato trovato per la chiave $_dreamsKey');
         return [];
       }
 
       // Prova prima con la nuova struttura (StringList)
       try {
         List<String>? dreamsJson = prefs.getStringList(_dreamsKey);
-        print('Tentativo StringList: $dreamsJson');
+  debugPrint('Tentativo StringList: $dreamsJson');
 
         if (dreamsJson != null) {
-          print('Trovati ${dreamsJson.length} sogni in formato StringList');
+          debugPrint('Trovati ${dreamsJson.length} sogni in formato StringList');
           final dreams = <SavedDream>[];
 
           for (int i = 0; i < dreamsJson.length; i++) {
             try {
               final dream = SavedDream.fromJsonString(dreamsJson[i]);
               dreams.add(dream);
-            } catch (e) {
-              print('Errore nel parsing del sogno $i: $e');
-              print('Dati problematici: ${dreamsJson[i]}');
+              } catch (e) {
+              debugPrint('Errore nel parsing del sogno $i: $e');
+              debugPrint('Dati problematici: ${dreamsJson[i]}');
             }
           }
 
-          print('Caricati con successo ${dreams.length} sogni');
+          debugPrint('Caricati con successo ${dreams.length} sogni');
           return dreams;
         }
       } catch (e) {
-        print('Errore nel caricamento StringList: $e');
+  debugPrint('Errore nel caricamento StringList: $e');
       }
 
       // Se non trova StringList, prova con la vecchia struttura (String singolo)
       try {
         String? oldData = prefs.getString(_dreamsKey);
-        print('Tentativo String singolo: ${oldData?.substring(0, 100)}...');
+  debugPrint('Tentativo String singolo: ${oldData?.substring(0, 100)}...');
 
         if (oldData != null) {
           // Prova a decodificare come lista JSON
           dynamic decoded = jsonDecode(oldData);
-          print('Tipo decodificato: ${decoded.runtimeType}');
+    debugPrint('Tipo decodificato: ${decoded.runtimeType}');
 
           if (decoded is List) {
             List<dynamic> dreamsList = decoded;
-            print('Trovati ${dreamsList.length} sogni in formato List');
+            debugPrint('Trovati ${dreamsList.length} sogni in formato List');
 
             final dreams = <SavedDream>[];
 
@@ -101,33 +102,33 @@ class DreamStorageService {
                 } else if (item is Map<String, dynamic>) {
                   dream = SavedDream.fromJson(item);
                 } else {
-                  print('Tipo item non supportato: ${item.runtimeType}');
+                  debugPrint('Tipo item non supportato: ${item.runtimeType}');
                   continue;
                 }
 
                 dreams.add(dream);
-              } catch (e) {
-                print('Errore nel parsing del sogno legacy $i: $e');
-                print('Dati problematici: ${dreamsList[i]}');
+                } catch (e) {
+                debugPrint('Errore nel parsing del sogno legacy $i: $e');
+                debugPrint('Dati problematici: ${dreamsList[i]}');
               }
             }
 
-            print(
+            debugPrint(
               'Caricati con successo ${dreams.length} sogni dal formato legacy',
             );
             return dreams;
           } else {
-            print('Formato dati non riconosciuto: ${decoded.runtimeType}');
+            debugPrint('Formato dati non riconosciuto: ${decoded.runtimeType}');
           }
         }
       } catch (e) {
-        print('Errore nel caricamento String singolo: $e');
+  debugPrint('Errore nel caricamento String singolo: $e');
       }
     } catch (e) {
-      print('Errore generale nel caricamento sogni: $e');
+      debugPrint('Errore generale nel caricamento sogni: $e');
     }
 
-    print('Nessun sogno caricato, ritorno lista vuota');
+    debugPrint('Nessun sogno caricato, ritorno lista vuota');
     return [];
   }
 
@@ -135,7 +136,7 @@ class DreamStorageService {
   Future<void> clearCorruptedData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_dreamsKey);
-    print('Dati corrotti rimossi');
+  debugPrint('Dati corrotti rimossi');
   }
 
   // Elimina un sogno
@@ -225,7 +226,7 @@ class DreamStorageService {
     final uniqueDreamsList = uniqueDreams.values.toList();
     uniqueDreamsList.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    print(
+    debugPrint(
       'Debug: Rimossi ${dreams.length - uniqueDreamsList.length} sogni duplicati',
     );
 

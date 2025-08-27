@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -12,7 +13,7 @@ class ImageCacheService {
       // Scarica l'immagine
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode != 200) {
-        print('Errore nel download dell\'immagine: ${response.statusCode}');
+  debugPrint('Errore nel download dell\'immagine: ${response.statusCode}');
         return null;
       }
 
@@ -33,10 +34,10 @@ class ImageCacheService {
       final file = File(filePath);
       await file.writeAsBytes(response.bodyBytes);
 
-      print('Immagine salvata in: $filePath');
+  debugPrint('Immagine salvata in: $filePath');
       return filePath;
     } catch (e) {
-      print('Errore nel salvare l\'immagine: $e');
+  debugPrint('Errore nel salvare l\'immagine: $e');
       return null;
     }
   }
@@ -50,7 +51,7 @@ class ImageCacheService {
       final file = File(filePath);
       return await file.exists();
     } catch (e) {
-      print('Errore nel verificare la cache dell\'immagine: $e');
+  debugPrint('Errore nel verificare la cache dell\'immagine: $e');
       return false;
     }
   }
@@ -68,7 +69,7 @@ class ImageCacheService {
       }
       return null;
     } catch (e) {
-      print('Errore nel recuperare il percorso dell\'immagine: $e');
+      debugPrint('Errore nel recuperare il percorso dell\'immagine: $e');
       return null;
     }
   }
@@ -83,10 +84,10 @@ class ImageCacheService {
 
       if (await file.exists()) {
         await file.delete();
-        print('Immagine eliminata: $filePath');
+    debugPrint('Immagine eliminata: $filePath');
       }
     } catch (e) {
-      print('Errore nell\'eliminare l\'immagine: $e');
+  debugPrint('Errore nell\'eliminare l\'immagine: $e');
     }
   }
 
@@ -98,10 +99,10 @@ class ImageCacheService {
 
       if (await imagesDir.exists()) {
         await imagesDir.delete(recursive: true);
-        print('Tutte le immagini dalla cache sono state eliminate');
+  debugPrint('Tutte le immagini dalla cache sono state eliminate');
       }
     } catch (e) {
-      print('Errore nell\'eliminare la cache delle immagini: $e');
+  debugPrint('Errore nell\'eliminare la cache delle immagini: $e');
     }
   }
 
@@ -124,7 +125,7 @@ class ImageCacheService {
       }
       return totalSize;
     } catch (e) {
-      print('Errore nel calcolare la dimensione della cache: $e');
+  debugPrint('Errore nel calcolare la dimensione della cache: $e');
       return 0;
     }
   }

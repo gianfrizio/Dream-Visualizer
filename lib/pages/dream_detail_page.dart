@@ -971,7 +971,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
         ),
       );
     } catch (e) {
-      print('Errore toggle like commento: $e');
+      debugPrint('Errore toggle like commento: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1230,7 +1230,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
           );
         }
       } catch (e) {
-        print('Errore eliminazione commento: $e');
+        debugPrint('Errore eliminazione commento: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1347,7 +1347,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
         widget.dream.dreamText,
       );
 
-      print('Dream language detected: $dreamLang, target: $targetLang');
+      debugPrint('Dream language detected: $dreamLang, target: $targetLang');
 
       // Traduci sempre se la lingua è incerta, oppure se è diversa dalla target
       if (dreamLang == 'auto' || dreamLang != targetLang) {
@@ -1435,7 +1435,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
         );
       }
     } catch (e) {
-      print('Translation error: $e');
+      debugPrint('Translation error: $e');
       setState(() {
         _isTranslating = false;
       });

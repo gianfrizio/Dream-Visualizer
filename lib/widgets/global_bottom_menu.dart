@@ -6,6 +6,10 @@ import '../pages/dream_history_page.dart';
 import '../pages/improved_community_page.dart';
 import '../pages/dream_analytics_page.dart';
 
+// Global key to locate the history button for flying-star animations.
+final GlobalKey historyButtonKey = GlobalKey();
+
+
 class GlobalBottomMenu extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final RouteObserver<ModalRoute<void>>? routeObserver;
@@ -26,7 +30,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
   @override
   void initState() {
     super.initState();
-    print('GlobalBottomMenu: initState');
+  debugPrint('GlobalBottomMenu: initState');
     final obs = widget.routeObserver;
     if (obs != null) {
       _routeAware = _RouteListener(onRouteChanged: _onRouteChanged);
@@ -101,10 +105,12 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
     required int index,
     required Color color,
     required ThemeData theme,
+    Key? buttonKey,
   }) {
     final bool active = _activeIndex == index;
     return Expanded(
       child: InkWell(
+        key: buttonKey,
         onTap: () => _navigateTo(index),
         borderRadius: BorderRadius.circular(12),
         overlayColor: MaterialStateProperty.resolveWith(
@@ -146,16 +152,17 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
 
   @override
   Widget build(BuildContext context) {
-    print('GlobalBottomMenu: build (active=$_activeIndex)');
+  debugPrint('GlobalBottomMenu: build (active=$_activeIndex)');
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context);
 
     final main = SafeArea(
       child: Container(
-        // Keep the container transparent so the app's background gradient
-        // remains visible underneath. Individual menu items can use
-        // Material surfaces where needed.
-        decoration: const BoxDecoration(color: Colors.transparent),
+        // Use scaffoldBackgroundColor so the menu visually merges with
+        // the app's background and no seam appears between content and the menu.
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
@@ -167,6 +174,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                 index: 0,
                 color: const Color(0xFF8B5CF6),
                 theme: theme,
+                buttonKey: historyButtonKey,
               ),
               _buildItem(
                 icon: Icons.people_rounded,

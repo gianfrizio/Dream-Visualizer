@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -57,7 +58,7 @@ class NotificationService {
       // is required. For now assume manifest-configured permissions are sufficient.
       return true;
     } catch (e) {
-      print('Error requesting notification permissions: $e');
+      debugPrint('Error requesting notification permissions: $e');
       return false;
     }
   }
