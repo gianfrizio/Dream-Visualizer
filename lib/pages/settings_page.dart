@@ -95,6 +95,25 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [_buildThemeSelector(localizations)],
             ),
 
+            const SizedBox(height: 12),
+
+            // Sezione animazioni (toggle to disable background animations/videos)
+            _buildSection(
+              title: localizations.enableAnimatedBackgrounds,
+              children: [
+                _buildSwitchTile(
+                  icon: Icons.movie_filter,
+                  title: localizations.enableAnimatedBackgrounds,
+                  value: widget.themeService.animationsEnabled,
+                  onChanged: (v) async {
+                    await widget.themeService.setAnimationsEnabled(v);
+                    // Rebuild to apply immediately
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ],
+            ),
+
             const SizedBox(height: 24),
 
             // Sezione dati
@@ -209,6 +228,12 @@ class _SettingsPageState extends State<SettingsPage> {
     required String title,
     required List<Widget> children,
   }) {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.titleMedium?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -216,7 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.only(left: 4, bottom: 12),
           child: Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: titleStyle,
           ),
         ),
         ...children,
@@ -447,7 +472,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSwitchTile({
     required IconData icon,
     required String title,
-    required String subtitle,
+    String? subtitle,
     required bool value,
     required void Function(bool)? onChanged,
   }) {
@@ -462,16 +487,18 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         title: Text(
           title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w500,
           ),
         ),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
+        subtitle: subtitle == null || subtitle.isEmpty
+            ? null
+            : Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
         trailing: Switch(value: value, onChanged: onChanged),
       ),
     );

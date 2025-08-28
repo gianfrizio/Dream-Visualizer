@@ -3,13 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
+  static const String _animationsEnabledKey = 'animations_enabled';
   ThemeMode _themeMode = ThemeMode.system;
+  bool _animationsEnabled = true;
 
   ThemeMode get themeMode => _themeMode;
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final themeIndex = prefs.getInt(_themeKey) ?? 0; // 0 = system default
+
+  // Load animations preference (default true)
+  _animationsEnabled = prefs.getBool(_animationsEnabledKey) ?? true;
 
     switch (themeIndex) {
       case 0:
@@ -24,6 +29,16 @@ class ThemeService extends ChangeNotifier {
       default:
         _themeMode = ThemeMode.system;
     }
+    notifyListeners();
+  }
+
+  bool get animationsEnabled => _animationsEnabled;
+
+  Future<void> setAnimationsEnabled(bool enabled) async {
+    if (_animationsEnabled == enabled) return;
+    _animationsEnabled = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_animationsEnabledKey, enabled);
     notifyListeners();
   }
 

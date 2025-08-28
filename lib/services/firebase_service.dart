@@ -43,7 +43,7 @@ class FirebaseService {
 
       return user.uid;
     } catch (e) {
-  debugPrint('Firebase not available, using local user ID: $e');
+      debugPrint('Firebase not available, using local user ID: $e');
       _isFirebaseAvailable = false;
       // Fallback: usa un ID locale fisso
       return 'local_user_${DateTime.now().millisecondsSinceEpoch}';
@@ -77,9 +77,9 @@ class FirebaseService {
           .collection(_dreamsCollection)
           .doc(dream.id)
           .set(dreamData);
-  debugPrint('Dream ${dream.id} shared to community');
+      debugPrint('Dream ${dream.id} shared to community');
     } catch (e) {
-  debugPrint('Error sharing dream: $e');
+      debugPrint('Error sharing dream: $e');
       throw e;
     }
   }
@@ -92,9 +92,9 @@ class FirebaseService {
       // Also delete associated comments and likes
       await _deleteAssociatedData(dreamId);
 
-  debugPrint('Dream $dreamId removed from community');
+      debugPrint('Dream $dreamId removed from community');
     } catch (e) {
-  debugPrint('Error removing dream: $e');
+      debugPrint('Error removing dream: $e');
       throw e;
     }
   }
@@ -142,7 +142,7 @@ class FirebaseService {
 
       return dreams;
     } catch (e) {
-  debugPrint('Error loading community dreams: $e');
+      debugPrint('Error loading community dreams: $e');
       return [];
     }
   }
@@ -191,7 +191,7 @@ class FirebaseService {
 
       return {'isLiked': !isLiked, 'likeCount': likeCount};
     } catch (e) {
-  debugPrint('Error toggling dream like: $e');
+      debugPrint('Error toggling dream like: $e');
       throw e;
     }
   }
@@ -205,7 +205,7 @@ class FirebaseService {
           .get();
       return dreamDoc.data()?['likes_count'] ?? 0;
     } catch (e) {
-  debugPrint('Error getting dream likes: $e');
+      debugPrint('Error getting dream likes: $e');
       return 0;
     }
   }
@@ -222,7 +222,7 @@ class FirebaseService {
           .get();
       return likeDoc.exists;
     } catch (e) {
-  debugPrint('Error checking user like: $e');
+      debugPrint('Error checking user like: $e');
       return false;
     }
   }

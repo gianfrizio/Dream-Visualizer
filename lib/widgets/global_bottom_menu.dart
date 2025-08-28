@@ -9,6 +9,11 @@ import '../pages/dream_analytics_page.dart';
 // Global key to locate the history button for flying-star animations.
 final GlobalKey historyButtonKey = GlobalKey();
 
+// Public constant representing the visual height of the global bottom menu.
+// Make it compact so it doesn't occupy excessive vertical space on pages
+// like the interpretation view. System bottom inset (navigation bar)
+// remains separate.
+const double kGlobalBottomMenuHeight = 52.0;
 
 class GlobalBottomMenu extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
@@ -30,7 +35,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
   @override
   void initState() {
     super.initState();
-  debugPrint('GlobalBottomMenu: initState');
+  // initState
     final obs = widget.routeObserver;
     if (obs != null) {
       _routeAware = _RouteListener(onRouteChanged: _onRouteChanged);
@@ -152,19 +157,24 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
 
   @override
   Widget build(BuildContext context) {
-  debugPrint('GlobalBottomMenu: build (active=$_activeIndex)');
+  // build
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context);
 
-    final main = SafeArea(
+    final main = Container(
+      // Avoid an extra SafeArea here; callers should account for system
+      // insets if they reserve space using `kGlobalBottomMenuHeight`.
+      // This reduces the stacked vertical footprint on pages that already
+      // used SafeArea.
       child: Container(
         // Use scaffoldBackgroundColor so the menu visually merges with
         // the app's background and no seam appears between content and the menu.
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Padding(
+          // More compact vertical padding to reduce the menu footprint
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -177,7 +187,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                 buttonKey: historyButtonKey,
               ),
               _buildItem(
-                icon: Icons.people_rounded,
+    icon: Icons.people_rounded,
                 label: localizations?.community ?? 'Community',
                 index: 1,
                 color: const Color(0xFF10B981),
@@ -194,8 +204,8 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                         (states) => Colors.white.withOpacity(0.12),
                       ),
                       child: Container(
-                        width: 96,
-                        height: 56,
+      width: 86,
+      height: 48,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -208,17 +218,17 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                           // above the menu on some devices.
                         ),
                         child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              localizations?.sogna ?? 'Sogna',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                localizations?.sogna ?? 'Sogna',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
-                          ),
                         ),
                       ),
                     ),

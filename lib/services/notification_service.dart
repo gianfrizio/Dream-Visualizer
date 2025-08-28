@@ -10,6 +10,13 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
+    // Only initialize platform-specific notification channels on supported
+    // mobile platforms. On desktop (Linux/macOS/Windows) the plugin may require
+    // additional configuration; skip to avoid platform exceptions during debug.
+    if (!(defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS)) {
+      return;
+    }
     const android = AndroidInitializationSettings('@mipmap/launcher_icon');
     const ios = DarwinInitializationSettings();
 

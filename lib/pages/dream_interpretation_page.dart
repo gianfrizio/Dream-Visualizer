@@ -1032,9 +1032,10 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
 
             return Column(
               children: [
-                // Push the main content below the transparent AppBar so the
-                // title remains visible and the gradient continues behind it.
-                SizedBox(height: topOffset),
+                // Push the main content slightly below the transparent AppBar
+                // but keep the gap minimal so the page title and the section
+                // header appear closer together on phones.
+                SizedBox(height: max(8.0, topOffset - 36.0)),
 
                 // Keep the content centered vertically when it's smaller than
                 // the available space, and allow scrolling when it's larger.
@@ -1047,7 +1048,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                           constraints: BoxConstraints(
                             minHeight: constraints.maxHeight,
                           ),
-                          child: Center(child: content),
+                          child: Align(alignment: Alignment.topCenter, child: content),
                         ),
                       );
                     },
@@ -1260,51 +1261,23 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row with title and actions
+              // Header row with a single centered title: "Il tuo sogno".
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Text(
-                      localizations.yourDreamTitle,
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
+                    child: Center(
+                      child: Text(
+                        localizations.yourDreamTitle,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-                  if (_isSaved)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.green.withOpacity(0.22),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            color: Colors.green.shade700,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            localizations.dreamSavedSuccessfully,
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
 
@@ -1522,7 +1495,51 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 },
               ),
 
-              const SizedBox(height: 28),
+              // Place the 'dream saved' badge at the bottom of the interpretation
+              // so it doesn't push the title off-center.
+              if (_isSaved) ...[
+                const SizedBox(height: 12),
+                // Align badge to the left so it lines up with other section
+                // titles and content.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.withOpacity(0.22),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green.shade700,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          localizations.dreamSavedSuccessfully,
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Reduce extra bottom spacing so the global bottom menu doesn't
+              // consume too much of the interpretation page.
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -1670,15 +1687,8 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
       try {
         entry.remove();
       } catch (_) {}
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              added ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti',
-            ),
-          ),
-        );
-      }
+  // Intentionally do not show an inline snackbar for favorites to keep
+  // the UI clean; the star animation provides sufficient feedback.
     });
   }
 }

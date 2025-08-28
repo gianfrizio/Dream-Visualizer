@@ -357,6 +357,8 @@ class AppLocalizations {
       'cancelAction': 'Annulla',
       'clearAndStartNew': 'Cancella e inizia nuovo',
       'clear': 'Cancella',
+    // Animations setting label
+    'enableAnimatedBackgrounds': 'Abilita sfondi animati',
     },
     'en': {
       'appTitle': 'Dreamsy',
@@ -697,6 +699,8 @@ class AppLocalizations {
       'cancelAction': 'Cancel',
       'clearAndStartNew': 'Clear and Start New',
       'clear': 'Clear',
+    // Animations setting label (keep English text in both languages per UX request)
+    'enableAnimatedBackgrounds': 'Enable animated backgrounds',
     },
   };
 
@@ -1036,6 +1040,7 @@ class AppLocalizations {
   String get cancelAction => translate('cancelAction');
   String get clearAndStartNew => translate('clearAndStartNew');
   String get clear => translate('clear');
+    String get enableAnimatedBackgrounds => translate('enableAnimatedBackgrounds');
 }
 
 class _AppLocalizationsDelegate

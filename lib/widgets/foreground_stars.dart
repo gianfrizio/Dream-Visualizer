@@ -51,20 +51,8 @@ class _ForegroundStarsState extends State<ForegroundStars>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
     _ctrl.addListener(() {
-      // advance z for each foreground star so they move toward viewer
-      for (final s in _stars) {
-        // slow down foreground approach to be less jarring
-        s.z -= 0.003 * (1.0 + (s.radius / 1.2));
-        if (s.z <= 0.05) {
-          s.z = 1.0 + _rnd.nextDouble() * 0.6;
-          s.x = _rnd.nextDouble();
-          s.y = _rnd.nextDouble();
-          s.fx = 0.45 + (_rnd.nextDouble() - 0.5) * 0.22;
-          s.fy = 0.45 + (_rnd.nextDouble() - 0.5) * 0.22;
-          s.radius = 0.6 + _rnd.nextDouble() * 2.4;
-          s.phase = _rnd.nextDouble() * 2 * pi;
-        }
-      }
+      // Keep foreground stars static in depth (z) to avoid the "approaching"
+      // effect. We still update the widget to allow twinkle/opacity changes.
       if (mounted) setState(() {});
     });
   }

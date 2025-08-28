@@ -46,19 +46,19 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
   Future<void> _loadDreams() async {
     try {
       setState(() => _isLoading = true);
-  debugPrint('Iniziando caricamento sogni...');
+      debugPrint('Iniziando caricamento sogni...');
       final dreams = await _storageService.getSavedDreams();
-  debugPrint('Sogni caricati: ${dreams.length}');
+      debugPrint('Sogni caricati: ${dreams.length}');
       setState(() {
         _dreams = dreams;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
       setState(() => _isLoading = false);
-  debugPrint('Errore dettagliato nel caricamento sogni:');
-  debugPrint('Tipo errore: ${e.runtimeType}');
-  debugPrint('Messaggio: $e');
-  debugPrint('$stackTrace');
+      debugPrint('Errore dettagliato nel caricamento sogni:');
+      debugPrint('Tipo errore: ${e.runtimeType}');
+      debugPrint('Messaggio: $e');
+      debugPrint('$stackTrace');
 
       if (mounted) {
         // Mostra un dialog con opzioni per gestire l'errore
@@ -122,9 +122,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          'Errore durante la pulizia: $clearError',
-                        ),
+                        content: Text('Errore durante la pulizia: $clearError'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -302,52 +300,54 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
         ),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : ((_dreams.isEmpty && !_showFavorites) || (_favoriteDreams.isEmpty && _showFavorites))
-                ? _buildEmptyState(localizations, theme)
-                : Column(
-                    children: [
-                      // Toggle between All / Favorites
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => setState(() {
-                                  _showFavorites = false;
-                                }),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: _showFavorites
-                                      ? theme.colorScheme.onSurface
-                                      : theme.colorScheme.primary,
-                                ),
-                                child: Text('Tutti'),
-                              ),
+            : ((_dreams.isEmpty && !_showFavorites) ||
+                  (_favoriteDreams.isEmpty && _showFavorites))
+            ? _buildEmptyState(localizations, theme)
+            : Column(
+                children: [
+                  // Toggle between All / Favorites
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => setState(() {
+                              _showFavorites = false;
+                            }),
+                            style: TextButton.styleFrom(
+                              foregroundColor: _showFavorites
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.primary,
                             ),
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () async {
-                                  await _loadFavorites();
-                                  setState(() {
-                                    _showFavorites = true;
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: _showFavorites
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurface,
-                                ),
-                                child: Text('Preferiti'),
-                              ),
-                            ),
-                          ],
+                            child: Text('Tutti'),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: _buildDreamsList(localizations, theme),
-                      ),
-                    ],
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () async {
+                              await _loadFavorites();
+                              setState(() {
+                                _showFavorites = true;
+                              });
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: _showFavorites
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                            child: Text('Preferiti'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  Expanded(child: _buildDreamsList(localizations, theme)),
+                ],
+              ),
       ),
     );
   }
@@ -444,7 +444,8 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                       IconButton(
                         onPressed: () async {
                           try {
-                            final added = await _favoritesService.toggleFavorite(dream);
+                            final added = await _favoritesService
+                                .toggleFavorite(dream);
                             await _loadFavorites();
                             if (mounted) {
                               setState(() {
@@ -456,19 +457,29 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(added
-                                      ? 'Aggiunto ai preferiti'
-                                      : 'Rimosso dai preferiti'),
+                                  content: Text(
+                                    added
+                                        ? 'Aggiunto ai preferiti'
+                                        : 'Rimosso dai preferiti',
+                                  ),
                                 ),
                               );
                             }
                           } catch (_) {}
                         },
                         icon: Icon(
-                          _favoriteIds.contains(dream.id) ? Icons.star : Icons.star_border,
-                          color: _favoriteIds.contains(dream.id) ? Colors.amber : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          _favoriteIds.contains(dream.id)
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: _favoriteIds.contains(dream.id)
+                              ? Colors.amber
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
+                                ),
                         ),
-                        tooltip: _favoriteIds.contains(dream.id) ? 'Rimosso dai preferiti' : 'Aggiungi ai preferiti',
+                        tooltip: _favoriteIds.contains(dream.id)
+                            ? 'Rimosso dai preferiti'
+                            : 'Aggiungi ai preferiti',
                       ),
                       // Pulsante condivisione community
                       IconButton(

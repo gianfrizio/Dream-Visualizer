@@ -19,7 +19,7 @@ import 'services/notification_service.dart';
 import 'widgets/starry_background.dart';
 import 'widgets/global_bottom_menu.dart';
 import 'widgets/tap_sparkle.dart';
-import 'widgets/foreground_stars.dart';
+// foreground stars removed per UX: no approaching or foreground stars
 
 // Temporary global notifier used for debugging touch events on-device.
 // Set to an Offset when a pointer down occurs and cleared shortly after.
@@ -82,6 +82,8 @@ class DreamApp extends StatelessWidget {
     required this.themeService,
   });
 
+  // ...existing code...
+
   @override
   Widget build(BuildContext context) {
     // Use class-level navigatorKey and routeObserver so they persist across rebuilds
@@ -100,28 +102,33 @@ class DreamApp extends StatelessWidget {
           // even when pages draw full-bleed backgrounds. Use IgnorePointer so
           // interactions are unaffected and adjust opacity by theme.
           builder: (context, child) {
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            // On light backgrounds we need a stronger star overlay so stars
-            // remain visible; increase opacity for light theme only.
-            // Raised to make stars more prominent on pale backgrounds.
-            final overlayOpacity = isDark ? 0.14 : 0.32;
-
-            // Reserve only the system bottom inset so content can extend
-            // right up to the global menu. Avoid adding extra fixed height
-            // which produced a visible gap on some devices.
-            final double _globalMenuExtraHeight = 0.0;
-            final double _menuInset =
-                MediaQuery.of(context).viewPadding.bottom +
-                _globalMenuExtraHeight;
+      // Reserve the system bottom inset plus the visual height of the
+      // global menu so the app content never renders underneath it.
+      // `kGlobalBottomMenuHeight` is defined in the global_bottom_menu
+      // widget and represents the menu's visual height (not including
+      // the system navigation bar inset). This ensures consistent
+      // spacing across screens and when the keyboard is open.
+      final double _menuInset = MediaQuery.of(context).viewPadding.bottom +
+        // default to 0 if the constant cannot be resolved (defensive)
+        (kGlobalBottomMenuHeight);
 
             return Stack(
               children: [
-                // Starry background under content
-                Positioned.fill(
+                // Starry background under content (use theme-specific video assets)
+                // Reserve bottom space so the background doesn't extend under
+                // the global menu. This keeps the visual background aligned
+                // with the app content above the menu.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: _menuInset,
                   child: IgnorePointer(
-                    child: Opacity(
-                      opacity: overlayOpacity,
-                      child: StarryBackground(),
+                    child: StarryBackground(
+                      videoAssetLight: 'assets/video/bg_light.mp4',
+                      videoAssetDark: 'assets/video/bg_dark.mp4',
+                      // temporarily hide procedural stars to expose raw video for testing
+                      showStars: false,
                     ),
                   ),
                 ),
@@ -134,10 +141,7 @@ class DreamApp extends StatelessWidget {
                     ),
                   ),
 
-                // Lightweight foreground stars (centers only) painted above
-                // the content so approaching stars are visible and appear to
-                // come toward the viewer without soft halos that could blur UI.
-                Positioned.fill(child: IgnorePointer(child: ForegroundStars())),
+                // Foreground stars removed: no foreground/approaching stars per UX
 
                 // Global bottom menu overlay: let the menu size itself and sit above
                 // system insets. Use SafeArea(top: false) so it respects the bottom
@@ -933,31 +937,19 @@ class _DreamHomePageState extends State<DreamHomePage>
     final localizations = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: GestureDetector(
         onTap: () {
           // Nasconde la tastiera quando si clicca fuori dal campo di testo
           _textFieldFocusNode.unfocus();
         },
         child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: theme.brightness == Brightness.light
-                  ? [
-                      const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
-                      const Color(0xFFF7F8FC), // Bianco con hint di viola
-                      const Color(
-                        0xFFF0F4FF,
-                      ), // Bianco con tocco di blu molto tenue
-                    ]
-                  : [
-                      const Color(0xFF0F172A), // Blu scuro profondo
-                      const Color(0xFF1E293B), // Blu scuro medio
-                      const Color(0xFF334155), // Grigio-blu
-                    ],
-            ),
-          ),
+          // Make the top-level UI container transparent so the video
+          // background rendered by StarryBackground remains visible
+          // beneath the app. Individual cards and panels still use
+          // surface colors so legibility is preserved.
+          decoration: const BoxDecoration(color: Colors.transparent),
+          
           child: SafeArea(
             child: Column(
               children: [
@@ -1097,14 +1089,21 @@ class _DreamHomePageState extends State<DreamHomePage>
                 textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontSize: 16),
                 decoration: InputDecoration(
-                  hintText: localizations.writeDreamHere,
+                  // Use a hint widget with maxLines=1 and ellipsis to avoid
+                  // the placeholder wrapping onto multiple lines in the
+                  // multiline TextField.
+                  hint: Text(
+                    localizations.writeDreamHere,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
-                  ),
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
                   ),
                 ),
                 onChanged: (text) {

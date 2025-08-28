@@ -28,13 +28,18 @@ class _TapSparkle extends StatefulWidget {
   final Offset globalPosition;
   final VoidCallback onComplete;
 
-  const _TapSparkle({Key? key, required this.globalPosition, required this.onComplete}) : super(key: key);
+  const _TapSparkle({
+    Key? key,
+    required this.globalPosition,
+    required this.onComplete,
+  }) : super(key: key);
 
   @override
   State<_TapSparkle> createState() => _TapSparkleState();
 }
 
-class _TapSparkleState extends State<_TapSparkle> with SingleTickerProviderStateMixin {
+class _TapSparkleState extends State<_TapSparkle>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctr;
   late final Animation<double> _anim;
   final Random _rnd = Random();
@@ -43,13 +48,17 @@ class _TapSparkleState extends State<_TapSparkle> with SingleTickerProviderState
   @override
   void initState() {
     super.initState();
-    _ctr = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))
-      ..addStatusListener((s) {
-        if (s == AnimationStatus.completed) {
-          widget.onComplete();
-        }
-      })
-      ..forward();
+    _ctr =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 600),
+          )
+          ..addStatusListener((s) {
+            if (s == AnimationStatus.completed) {
+              widget.onComplete();
+            }
+          })
+          ..forward();
 
     _anim = CurvedAnimation(parent: _ctr, curve: Curves.easeOutCubic);
 
@@ -57,8 +66,17 @@ class _TapSparkleState extends State<_TapSparkle> with SingleTickerProviderState
     _particles = List.generate(6, (i) {
       final angle = (_rnd.nextDouble() * pi * 2);
       final speed = 28 + _rnd.nextDouble() * 22;
-      final color = Color.lerp(Colors.white, Colors.yellow.shade700, _rnd.nextDouble())!;
-      return _Particle(angle: angle, speed: speed, color: color, size: 6 + _rnd.nextDouble() * 6);
+      final color = Color.lerp(
+        Colors.white,
+        Colors.yellow.shade700,
+        _rnd.nextDouble(),
+      )!;
+      return _Particle(
+        angle: angle,
+        speed: speed,
+        color: color,
+        size: 6 + _rnd.nextDouble() * 6,
+      );
     });
 
     // Auto remove a bit after animation ends to be safe
@@ -112,7 +130,12 @@ class _Particle {
   final double size;
   final Color color;
 
-  _Particle({required this.angle, required this.speed, required this.color, required this.size});
+  _Particle({
+    required this.angle,
+    required this.speed,
+    required this.color,
+    required this.size,
+  });
 }
 
 class _SparklePainter extends CustomPainter {
@@ -121,7 +144,12 @@ class _SparklePainter extends CustomPainter {
   final Offset origin;
   final double devicePixelRatio;
 
-  _SparklePainter({required this.progress, required this.particles, required this.origin, required this.devicePixelRatio});
+  _SparklePainter({
+    required this.progress,
+    required this.particles,
+    required this.origin,
+    required this.devicePixelRatio,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -145,7 +173,8 @@ class _SparklePainter extends CustomPainter {
 
     // small central pop
     final centerOpacity = (1.0 - progress * 0.8).clamp(0.0, 1.0);
-    final centerPaint = Paint()..color = Colors.white.withOpacity(centerOpacity);
+    final centerPaint = Paint()
+      ..color = Colors.white.withOpacity(centerOpacity);
     canvas.drawCircle(origin, 2.5 * (1.0 - progress) + 0.3, centerPaint);
   }
 
