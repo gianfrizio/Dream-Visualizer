@@ -1048,7 +1048,10 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                           constraints: BoxConstraints(
                             minHeight: constraints.maxHeight,
                           ),
-                          child: Align(alignment: Alignment.topCenter, child: content),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: content,
+                          ),
                         ),
                       );
                     },
@@ -1511,9 +1514,7 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.22),
-                      ),
+                      border: Border.all(color: Colors.green.withOpacity(0.22)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1687,8 +1688,8 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
       try {
         entry.remove();
       } catch (_) {}
-  // Intentionally do not show an inline snackbar for favorites to keep
-  // the UI clean; the star animation provides sufficient feedback.
+      // Intentionally do not show an inline snackbar for favorites to keep
+      // the UI clean; the star animation provides sufficient feedback.
     });
   }
 }

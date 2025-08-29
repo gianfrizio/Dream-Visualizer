@@ -18,26 +18,9 @@ class LanguageSelectionPage extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      // Use transparent body so the global background is visible
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
-                    const Color(0xFFF7F8FC), // Bianco con hint di viola
-                    const Color(
-                      0xFFF0F4FF,
-                    ), // Bianco con tocco di blu molto tenue
-                  ]
-                : [
-                    const Color(0xFF0F172A), // Blu scuro profondo
-                    const Color(0xFF1E293B), // Blu scuro medio
-                    const Color(0xFF334155), // Grigio-blu
-                  ],
-          ),
-        ),
+        color: Colors.transparent,
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: LanguageService.supportedLanguages.length,
@@ -116,33 +99,7 @@ class LanguageSelectionPage extends StatelessWidget {
                     await languageService.changeLanguage(language['code']!);
 
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.check_circle, color: Colors.white),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(localizations.languageChanged),
-                                    Text(
-                                      localizations.restartForFullEffect,
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 3),
-                        ),
-                      );
-
-                      // Torna alla pagina precedente
+                      // Success feedback suppressed per UX request (language change)
                       Navigator.of(context).pop();
                     }
                   }

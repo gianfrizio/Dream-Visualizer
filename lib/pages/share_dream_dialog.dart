@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
+import '../l10n/app_localizations.dart';
 
 class ShareDreamDialog extends StatefulWidget {
   final SavedDream dream;
@@ -24,8 +25,8 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
       title: Row(
         children: [
           Icon(Icons.share, color: theme.primaryColor),
-          SizedBox(width: 8),
-          Text('Condividi con la Community'),
+          const SizedBox(width: 8),
+          Text(AppLocalizations.of(context)!.share),
         ],
       ),
       content: Column(
@@ -33,8 +34,10 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Vuoi condividere "${widget.dream.title}" con la community?',
-            style: TextStyle(fontSize: 16),
+            AppLocalizations.of(
+              context,
+            )!.confirmShareMessage.replaceAll('{title}', widget.dream.title),
+            style: const TextStyle(fontSize: 16),
           ),
           SizedBox(height: 16),
           Container(
@@ -50,7 +53,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Il tuo sogno sarà visibile a tutti gli utenti della community in modo anonimo.',
+                    AppLocalizations.of(context)!.sharedDreamsVisibleInfo,
                     style: TextStyle(color: Colors.blue[700], fontSize: 14),
                   ),
                 ),
@@ -72,7 +75,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Questo sogno è già condiviso con la community.',
+                      AppLocalizations.of(context)!.alreadySharedMessage,
                       style: TextStyle(
                         color: Colors.green[700],
                         fontSize: 14,
@@ -89,7 +92,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: Text('Annulla'),
+          child: Text(AppLocalizations.of(context)!.cancelAction),
         ),
         if (!widget.dream.isSharedWithCommunity)
           ElevatedButton(
@@ -107,7 +110,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text('Condividi'),
+                : Text(AppLocalizations.of(context)!.share),
           )
         else
           ElevatedButton(
@@ -125,7 +128,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text('Rimuovi condivisione'),
+                : Text(AppLocalizations.of(context)!.unshare),
           ),
       ],
     );
@@ -139,20 +142,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
       await dreamStorage.updateDreamSharingStatus(widget.dream.id, true);
 
       Navigator.pop(context, true); // Ritorna true per indicare successo
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Sogno condiviso con la community!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // Success feedback suppressed per UX request (no snackbar on success)
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -180,20 +170,7 @@ class _ShareDreamDialogState extends State<ShareDreamDialog> {
       await dreamStorage.updateDreamSharingStatus(widget.dream.id, false);
 
       Navigator.pop(context, true); // Ritorna true per indicare successo
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Condivisione rimossa!'),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // Success feedback suppressed per UX request (no snackbar on success)
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

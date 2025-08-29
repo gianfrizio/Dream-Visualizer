@@ -132,9 +132,9 @@ class _StarryBackgroundState extends State<StarryBackground>
       });
     } catch (_) {}
 
-  // We will decide whether to start animations/videos in
-  // didChangeDependencies so this happens as soon as the widget is
-  // inserted and a valid BuildContext is available (no extra frame delay).
+    // We will decide whether to start animations/videos in
+    // didChangeDependencies so this happens as soon as the widget is
+    // inserted and a valid BuildContext is available (no extra frame delay).
   }
 
   @override
@@ -224,10 +224,12 @@ class _StarryBackgroundState extends State<StarryBackground>
           if (!mounted) return;
           // pause any playing video so it remains a static frame
           try {
-            if (_videoControllerLight != null && _videoControllerLight!.value.isPlaying) {
+            if (_videoControllerLight != null &&
+                _videoControllerLight!.value.isPlaying) {
               _videoControllerLight!.pause();
             }
-            if (_videoControllerDark != null && _videoControllerDark!.value.isPlaying) {
+            if (_videoControllerDark != null &&
+                _videoControllerDark!.value.isPlaying) {
               _videoControllerDark!.pause();
             }
           } catch (e) {
@@ -247,11 +249,13 @@ class _StarryBackgroundState extends State<StarryBackground>
     if (!mounted) return;
 
     if (target == Brightness.light) {
-  // If already initializing or already initialized, skip to avoid
-  // allocating native decoder resources again (keyboard/showing IME
-  // can trigger rebuilds / didChangeDependencies).
-  if (_initializingLight) return;
-  if (_videoControllerLight != null && _isControllerReady(_videoControllerLight)) return;
+      // If already initializing or already initialized, skip to avoid
+      // allocating native decoder resources again (keyboard/showing IME
+      // can trigger rebuilds / didChangeDependencies).
+      if (_initializingLight) return;
+      if (_videoControllerLight != null &&
+          _isControllerReady(_videoControllerLight))
+        return;
       _initializingLight = true;
       // Dispose dark controller if present to free memory
       if (_videoControllerDark != null) {
@@ -264,13 +268,15 @@ class _StarryBackgroundState extends State<StarryBackground>
         _videoControllerDark = null;
       }
 
-  if (widget.videoAssetLight == null) {
+      if (widget.videoAssetLight == null) {
         _initializingLight = false;
         return;
       }
 
       try {
-        _videoControllerLight = VideoPlayerController.asset(widget.videoAssetLight!);
+        _videoControllerLight = VideoPlayerController.asset(
+          widget.videoAssetLight!,
+        );
         await _videoControllerLight!.initialize();
         await _videoControllerLight!.setVolume(0.0);
         await _videoControllerLight!.setLooping(true);
@@ -282,7 +288,9 @@ class _StarryBackgroundState extends State<StarryBackground>
           'isPlaying=${_videoControllerLight!.value.isPlaying}',
         );
       } catch (e, st) {
-        debugPrint('Failed to initialize light video asset "${widget.videoAssetLight}": $e');
+        debugPrint(
+          'Failed to initialize light video asset "${widget.videoAssetLight}": $e',
+        );
         debugPrint('$st');
         try {
           _videoControllerLight?.dispose();
@@ -296,7 +304,9 @@ class _StarryBackgroundState extends State<StarryBackground>
       // allocating native decoder resources again (keyboard/showing IME
       // can trigger rebuilds / didChangeDependencies).
       if (_initializingDark) return;
-      if (_videoControllerDark != null && _isControllerReady(_videoControllerDark)) return;
+      if (_videoControllerDark != null &&
+          _isControllerReady(_videoControllerDark))
+        return;
       _initializingDark = true;
       // Dispose light controller if present to free memory
       if (_videoControllerLight != null) {
@@ -315,7 +325,9 @@ class _StarryBackgroundState extends State<StarryBackground>
       }
 
       try {
-        _videoControllerDark = VideoPlayerController.asset(widget.videoAssetDark!);
+        _videoControllerDark = VideoPlayerController.asset(
+          widget.videoAssetDark!,
+        );
         await _videoControllerDark!.initialize();
         await _videoControllerDark!.setVolume(0.0);
         await _videoControllerDark!.setLooping(true);
@@ -327,7 +339,9 @@ class _StarryBackgroundState extends State<StarryBackground>
           'isPlaying=${_videoControllerDark!.value.isPlaying}',
         );
       } catch (e, st) {
-        debugPrint('Failed to initialize dark video asset "${widget.videoAssetDark}": $e');
+        debugPrint(
+          'Failed to initialize dark video asset "${widget.videoAssetDark}": $e',
+        );
         debugPrint('$st');
         try {
           _videoControllerDark?.dispose();
@@ -344,14 +358,14 @@ class _StarryBackgroundState extends State<StarryBackground>
   @override
   void dispose() {
     _accSub?.cancel();
-  _themeService?.removeListener(_onThemeServiceChanged);
+    _themeService?.removeListener(_onThemeServiceChanged);
     _ctrl.dispose();
     _videoControllerLight?.dispose();
     _videoControllerDark?.dispose();
-  // Note: do not synchronously delete thumbnail files here; deleting while
-  // the UI is rendering Image.file can create race conditions and crashes
-  // on some platforms. Leaving them in temp is acceptable; the OS will
-  // periodically clear tmp files.
+    // Note: do not synchronously delete thumbnail files here; deleting while
+    // the UI is rendering Image.file can create race conditions and crashes
+    // on some platforms. Leaving them in temp is acceptable; the OS will
+    // periodically clear tmp files.
     super.dispose();
   }
 
@@ -411,7 +425,9 @@ class _StarryBackgroundState extends State<StarryBackground>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final brightness = Theme.of(context).brightness;
-    final animationsEnabled = context.select<ThemeService, bool>((s) => s.animationsEnabled);
+    final animationsEnabled = context.select<ThemeService, bool>(
+      (s) => s.animationsEnabled,
+    );
     // Light theme: draw the warm cream background and overlay the same
     // procedural starfield used by the dark theme, but draw stars in a
     // golden color so they remain crisp and behave identically (perspective + tilt).
@@ -421,7 +437,7 @@ class _StarryBackgroundState extends State<StarryBackground>
       _updateVideoPlayback(brightness);
     }
 
-  // No large debug overlay will be shown in production.
+    // No large debug overlay will be shown in production.
 
     if (brightness == Brightness.light) {
       final hasVideo = _isControllerReady(_videoControllerLight);
@@ -433,7 +449,9 @@ class _StarryBackgroundState extends State<StarryBackground>
         if (hasVideo) {
           // show paused video frame (video is initialized and seeked to 0)
           try {
-            return RepaintBoundary(child: _buildVideo(controller: _videoControllerLight!));
+            return RepaintBoundary(
+              child: _buildVideo(controller: _videoControllerLight!),
+            );
           } catch (e) {
             debugPrint('Safe build video failed (light): $e');
             // fall through to thumbnail/painter fallback
@@ -455,10 +473,7 @@ class _StarryBackgroundState extends State<StarryBackground>
         }
 
         return RepaintBoundary(
-          child: CustomPaint(
-            size: size,
-            painter: _LightStarPainter(t: 0.0),
-          ),
+          child: CustomPaint(size: size, painter: _LightStarPainter(t: 0.0)),
         );
       }
 
@@ -475,7 +490,10 @@ class _StarryBackgroundState extends State<StarryBackground>
               Positioned.fill(
                 child: (() {
                   try {
-                    return Image.asset('assets/images/bg_light_frame.png', fit: BoxFit.cover);
+                    return Image.asset(
+                      'assets/images/bg_light_frame.png',
+                      fit: BoxFit.cover,
+                    );
                   } catch (e) {
                     debugPrint('Asset positioned failed (light): $e');
                   }
@@ -518,14 +536,16 @@ class _StarryBackgroundState extends State<StarryBackground>
       );
     }
 
-  // Dark theme branch
-  final hasDarkVideo = _isControllerReady(_videoControllerDark);
+    // Dark theme branch
+    final hasDarkVideo = _isControllerReady(_videoControllerDark);
 
     if (!animationsEnabled) {
       // Animations disabled: prefer showing a static frame from the dark video
       if (hasDarkVideo) {
         try {
-          return RepaintBoundary(child: _buildVideo(controller: _videoControllerDark!));
+          return RepaintBoundary(
+            child: _buildVideo(controller: _videoControllerDark!),
+          );
         } catch (e) {
           debugPrint('Safe build video failed (dark): $e');
         }
@@ -571,7 +591,10 @@ class _StarryBackgroundState extends State<StarryBackground>
             Positioned.fill(
               child: (() {
                 try {
-                  return Image.asset('assets/images/bg_dark_frame.png', fit: BoxFit.cover);
+                  return Image.asset(
+                    'assets/images/bg_dark_frame.png',
+                    fit: BoxFit.cover,
+                  );
                 } catch (e) {
                   debugPrint('Asset positioned failed (dark): $e');
                 }
@@ -582,7 +605,6 @@ class _StarryBackgroundState extends State<StarryBackground>
           // no debug overlay
 
           // debug artifacts removed
-
           if (widget.showStars && !hasDarkVideo)
             AnimatedBuilder(
               animation: _ctrl,
@@ -615,11 +637,7 @@ class _StarryBackgroundState extends State<StarryBackground>
         child: FittedBox(
           fit: BoxFit.cover,
           alignment: Alignment.center,
-          child: SizedBox(
-            width: w,
-            height: h,
-            child: VideoPlayer(vc),
-          ),
+          child: SizedBox(width: w, height: h, child: VideoPlayer(vc)),
         ),
       );
     } catch (e) {

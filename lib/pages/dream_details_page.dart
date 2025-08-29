@@ -16,24 +16,9 @@ class DreamDetailsPage extends StatelessWidget {
     final dateFormatter = DateFormat('dd/MM/yyyy - HH:mm');
 
     return Scaffold(
+      // Use a transparent container so the global animated background is visible
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD),
-                    const Color(0xFFF7F8FC),
-                    const Color(0xFFF0F4FF),
-                  ]
-                : [
-                    const Color(0xFF0F172A),
-                    const Color(0xFF1E293B),
-                    const Color(0xFF334155),
-                  ],
-          ),
-        ),
+        color: Colors.transparent,
         child: CustomScrollView(
           slivers: [
             SliverAppBar(

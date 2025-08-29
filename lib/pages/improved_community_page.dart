@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/saved_dream.dart';
@@ -5,6 +6,7 @@ import '../services/dream_storage_service.dart';
 import '../services/favorites_service.dart';
 import '../services/social_interaction_service.dart';
 import 'dream_detail_page.dart';
+import '../l10n/app_localizations.dart';
 
 class ImprovedCommunityPage extends StatefulWidget {
   const ImprovedCommunityPage({super.key});
@@ -40,8 +42,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   Map<String, int> _commentLikeCounts = {};
   Map<String, bool> _userLikedComments = {};
 
-  // Variabile per forzare l'aggiornamento dei commenti
-  int _commentsUpdateCounter = 0;
+  // Variabile rimossa: non utilizzata direttamente per l'UI corrente
 
   // Etichette multilingue per categorie
   List<String> get _categories {
@@ -694,9 +695,16 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   }
 
   Widget _buildMyDreamCard(SavedDream dream) {
+    // Match visual style from Dream History page
+    final theme = Theme.of(context);
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // add horizontal margin so cards don't touch the screen edges
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () async {
           await Navigator.push(
             context,
@@ -704,7 +712,6 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
               builder: (context) => DreamDetailPage(dream: dream),
             ),
           );
-          // Ricarica i dati sociali quando si torna dalla pagina del sogno
           _loadSocialData();
         },
         child: Padding(
@@ -713,18 +720,29 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      dream.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dream.title,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${dream.createdAt.day}/${dream.createdAt.month}/${dream.createdAt.year}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (dream.isSharedWithCommunity)
+                  if (dream.isSharedWithCommunity) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -745,30 +763,99 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                dream.dreamText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurface,
+
+              // Image if present
+              if ((dream.localImagePath?.isNotEmpty ?? false) ||
+                  (dream.imageUrl?.isNotEmpty ?? false)) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child:
+                      dream.localImagePath != null &&
+                          dream.localImagePath!.isNotEmpty
+                      ? Image.file(
+                          File(dream.localImagePath!),
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : dream.imageUrl != null && dream.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          dream.imageUrl!,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : const SizedBox.shrink(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${dream.createdAt.day}/${dream.createdAt.month}/${dream.createdAt.year}',
-                style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 12,
+              ],
+
+              // Tags
+              if (dream.tags.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: dream.tags
+                      .map(
+                        (tag) => Chip(
+                          label: Text(tag),
+                          backgroundColor: theme.colorScheme.secondaryContainer,
+                          labelStyle: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 0,
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
-              ),
+              ],
+
               const SizedBox(height: 12),
+
+              // Interpretation (if present)
+              if (dream.interpretation.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.interpretationTitle,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dream.interpretation.length > 100
+                            ? '${dream.interpretation.substring(0, 100)}...'
+                            : dream.interpretation,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer
+                              .withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Actions
               Row(
+                mainAxisSize: MainAxisSize.max,
                 children: [
                   ElevatedButton.icon(
                     onPressed: () => dream.isSharedWithCommunity
@@ -782,14 +869,8 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                     ),
                     label: Text(
                       dream.isSharedWithCommunity
-                          ? (Localizations.localeOf(context).languageCode ==
-                                    'en'
-                                ? 'Unshare'
-                                : 'Rimuovi')
-                          : (Localizations.localeOf(context).languageCode ==
-                                    'en'
-                                ? 'Share'
-                                : 'Condividi'),
+                          ? AppLocalizations.of(context)!.unshare
+                          : AppLocalizations.of(context)!.share,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: dream.isSharedWithCommunity
@@ -797,13 +878,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                           : null,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {
-                      // Logica per modificare
-                    },
-                    icon: const Icon(Icons.edit, size: 20),
-                  ),
+                  // edit button removed as it's not needed
                 ],
               ),
             ],
@@ -830,23 +905,17 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
             children: [
               if (dream != null) ...[
                 Text(
-                  Localizations.localeOf(context).languageCode == 'en'
-                      ? 'Do you want to share "${dream.title}" with the community?'
-                      : 'Vuoi condividere "${dream.title}" con la community?',
+                  AppLocalizations.of(
+                    context,
+                  )!.confirmShareMessage.replaceAll('{title}', dream.title),
                 ),
                 const SizedBox(height: 16),
               ] else ...[
-                Text(
-                  Localizations.localeOf(context).languageCode == 'en'
-                      ? 'To share a dream, select one from the "My Dreams" list.'
-                      : 'Per condividere un sogno, selezionane uno dalla lista "I Miei Sogni".',
-                ),
+                Text(AppLocalizations.of(context)!.sharedDreamsVisibleInfo),
                 const SizedBox(height: 16),
               ],
               Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? 'Shared dreams will be visible to all community users.'
-                    : 'I sogni condivisi saranno visibili a tutti gli utenti della community.',
+                AppLocalizations.of(context)!.sharedDreamsVisibleInfo,
                 style: const TextStyle(fontSize: 12),
               ),
             ],
@@ -889,9 +958,9 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 : 'Rimuovi Condivisione',
           ),
           content: Text(
-            Localizations.localeOf(context).languageCode == 'en'
-                ? 'Do you want to remove "${dream.title}" from the community?'
-                : 'Vuoi rimuovere "${dream.title}" dalla community?',
+            AppLocalizations.of(
+              context,
+            )!.confirmUnshareMessage.replaceAll('{title}', dream.title),
           ),
           actions: [
             TextButton(
@@ -966,16 +1035,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Localizations.localeOf(context).languageCode == 'en'
-                  ? 'Dream shared successfully!'
-                  : 'Sogno condiviso con successo!',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Success feedback suppressed per UX request (no banner on share)
       }
     } catch (e) {
       debugPrint('Errore condivisione sogno: $e');
@@ -1036,16 +1096,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Localizations.localeOf(context).languageCode == 'en'
-                  ? 'Dream removed from community successfully!'
-                  : 'Sogno rimosso dalla community con successo!',
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        // Success feedback suppressed per UX request (no banner on unshare)
       }
     } catch (e) {
       debugPrint('Errore rimozione condivisione sogno: $e');
@@ -1067,46 +1118,84 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   void _showCommentsDialog(SavedDream dream) async {
     final TextEditingController commentController = TextEditingController();
 
-    // Carica i commenti e i relativi like prima di aprire il dialogo
+    // Preload comments & likes
     try {
       final comments = await _socialService.getDreamComments(dream.id);
       await _loadCommentLikesData(comments);
-
-      // Incrementa il counter per assicurarsi che l'UI sia aggiornata
       setState(() {
-        _commentsUpdateCounter++;
+        // trigger UI update after loading comment likes
       });
     } catch (e) {
       debugPrint('Errore caricamento dati commenti: $e');
     }
 
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? 'Comments'
-                    : 'Commenti',
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 400,
+        // Remove the bottom view inset so the keyboard overlays the sheet.
+        // We manage input placement below using padding and a FractionallySizedBox.
+        final double originalBottomInset = MediaQuery.of(
+          context,
+        ).viewInsets.bottom;
+
+        return MediaQuery.removeViewInsets(
+          context: context,
+          removeBottom: true,
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(
+              bottom: originalBottomInset > 0 ? originalBottomInset : 6,
+            ),
+            child: FractionallySizedBox(
+              heightFactor: 0.8,
+              child: SafeArea(
+                top: false,
                 child: Column(
                   children: [
-                    // Lista commenti caricata dinamicamente
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              Localizations.localeOf(context).languageCode ==
+                                      'en'
+                                  ? 'Comments'
+                                  : 'Commenti',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(height: 1),
+
+                    // Comments list
                     Expanded(
-                      key: ValueKey(_commentsUpdateCounter),
                       child: FutureBuilder<List<Map<String, dynamic>>>(
                         future: _socialService.getDreamComments(dream.id),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator());
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
                           }
-
                           if (snapshot.hasError) {
                             return Center(
                               child: Text(
@@ -1119,7 +1208,6 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                           }
 
                           final comments = snapshot.data ?? [];
-
                           if (comments.isEmpty) {
                             return Container(
                               padding: const EdgeInsets.all(8),
@@ -1139,6 +1227,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                           }
 
                           return ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: comments.length,
                             itemBuilder: (context, index) {
                               final comment = comments[index];
@@ -1151,9 +1240,12 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                       )
                                     : null,
                                 child: Card(
-                                  margin: EdgeInsets.symmetric(vertical: 4),
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                    horizontal: 12,
+                                  ),
                                   child: Padding(
-                                    padding: EdgeInsets.all(12),
+                                    padding: const EdgeInsets.all(12),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -1168,31 +1260,26 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                                   .withOpacity(0.1),
                                               child: Text(
                                                 (comment['author'] ?? 'A')[0],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                comment['author'] ??
+                                                    (Localizations.localeOf(
+                                                              context,
+                                                            ).languageCode ==
+                                                            'en'
+                                                        ? 'Anonymous'
+                                                        : 'Anonimo'),
                                                 style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
                                                   color: Theme.of(
                                                     context,
                                                   ).colorScheme.primary,
-                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              comment['author'] ??
-                                                  (Localizations.localeOf(
-                                                            context,
-                                                          ).languageCode ==
-                                                          'en'
-                                                      ? 'Anonymous'
-                                                      : 'Anonimo'),
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
-                                              ),
-                                            ),
-                                            Spacer(),
                                             Text(
                                               _formatCommentDate(
                                                 comment['timestamp'],
@@ -1205,21 +1292,9 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                                     .withOpacity(0.6),
                                               ),
                                             ),
-                                            // Indicatore di commento modificato
-                                            if (comment['edited'] == true) ...[
-                                              SizedBox(width: 4),
-                                              Icon(
-                                                Icons.edit,
-                                                size: 12,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface
-                                                    .withOpacity(0.4),
-                                              ),
-                                            ],
                                           ],
                                         ),
-                                        SizedBox(height: 8),
+                                        const SizedBox(height: 8),
                                         Text(
                                           comment['content'] ?? '',
                                           style: TextStyle(
@@ -1228,15 +1303,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                             ).colorScheme.onSurface,
                                           ),
                                         ),
-                                        SizedBox(height: 8),
-                                        // Sezione like del commento
+                                        const SizedBox(height: 8),
                                         Row(
                                           children: [
                                             GestureDetector(
                                               onTap: () => _toggleCommentLike(
                                                 comment['id'],
                                                 dream,
-                                                setDialogState,
+                                                (fn) => fn(),
                                               ),
                                               child: Row(
                                                 children: [
@@ -1245,14 +1319,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                                             false)
                                                         ? Icons.favorite
                                                         : Icons.favorite_border,
+                                                    size: 14,
                                                     color:
                                                         (_userLikedComments[comment['id']] ??
                                                             false)
                                                         ? Colors.red
                                                         : Colors.grey,
-                                                    size: 14,
                                                   ),
-                                                  SizedBox(width: 4),
+                                                  const SizedBox(width: 4),
                                                   Text(
                                                     '${_commentLikeCounts[comment['id']] ?? 0}',
                                                     style: TextStyle(
@@ -1265,44 +1339,8 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                                                 ],
                                               ),
                                             ),
-                                            Spacer(),
                                           ],
                                         ),
-                                        // Hint per il menu contestuale
-                                        if (comment['author'] == 'Tu')
-                                          Padding(
-                                            padding: EdgeInsets.only(top: 6),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.touch_app,
-                                                  size: 12,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withOpacity(0.6),
-                                                ),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  Localizations.localeOf(
-                                                            context,
-                                                          ).languageCode ==
-                                                          'en'
-                                                      ? 'Long press for options'
-                                                      : 'Tieni premuto per opzioni',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .primary
-                                                        .withOpacity(0.6),
-                                                    fontStyle: FontStyle.italic,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
                                       ],
                                     ),
                                   ),
@@ -1313,59 +1351,59 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         },
                       ),
                     ),
-                    const Divider(),
-                    // Campo per nuovo commento
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: commentController,
-                            decoration: InputDecoration(
-                              hintText:
-                                  Localizations.localeOf(
-                                        context,
-                                      ).languageCode ==
-                                      'en'
-                                  ? 'Write a comment...'
-                                  : 'Scrivi un commento...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+
+                    const Divider(height: 1),
+
+                    // Input: remains above the keyboard via AnimatedPadding
+                    AnimatedPadding(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: commentController,
+                              decoration: InputDecoration(
+                                hintText:
+                                    Localizations.localeOf(
+                                          context,
+                                        ).languageCode ==
+                                        'en'
+                                    ? 'Write a comment...'
+                                    : 'Scrivi un commento...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
+                              maxLines: null,
                             ),
-                            maxLines: null,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: () {
-                            if (commentController.text.trim().isNotEmpty) {
-                              _addComment(dream, commentController.text.trim());
-                              commentController.clear();
-                            }
-                          },
-                          icon: const Icon(Icons.send),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () {
+                              if (commentController.text.trim().isNotEmpty) {
+                                _addComment(
+                                  dream,
+                                  commentController.text.trim(),
+                                );
+                                commentController.clear();
+                              }
+                            },
+                            icon: const Icon(Icons.send),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    Localizations.localeOf(context).languageCode == 'en'
-                        ? 'Close'
-                        : 'Chiudi',
-                  ),
-                ),
-              ],
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -1379,22 +1417,12 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       final comments = await _socialService.getDreamComments(dream.id);
       setState(() {
         _dreamCommentCounts[dream.id] = comments.length;
-        _commentsUpdateCounter++;
       });
 
       // Carica i dati dei like per i commenti aggiornati
       await _loadCommentLikesData(comments);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            Localizations.localeOf(context).languageCode == 'en'
-                ? '💬 Comment added successfully!'
-                : '💬 Commento aggiunto con successo!',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Success feedback suppressed per UX request (no banner on add comment)
       Navigator.of(context).pop();
       _showCommentsDialog(dream);
     } catch (e) {
@@ -1504,6 +1532,8 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                   ),
                 )
               : ListView.builder(
+                  // add top padding so the first card doesn't touch the tab title area
+                  padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
                   itemCount: _userDreams.length,
                   itemBuilder: (context, index) {
                     return _buildMyDreamCard(_userDreams[index]);
@@ -1561,16 +1591,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           : 'Sogno condiviso da DreamVisualizer',
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          Localizations.localeOf(context).languageCode == 'en'
-              ? '🔗 Dream shared with link!'
-              : '🔗 Sogno condiviso con link!',
-        ),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // Success feedback suppressed per UX request (no banner on external share)
   }
 
   // Metodo per gestire i like direttamente dalla community
@@ -1583,20 +1604,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         _dreamLikeCounts[dream.id] = result['likeCount'];
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['isLiked']
-                ? (Localizations.localeOf(context).languageCode == 'en'
-                      ? '❤️ You like this dream!'
-                      : '❤️ Ti piace questo sogno!')
-                : (Localizations.localeOf(context).languageCode == 'en'
-                      ? '💔 You no longer like this'
-                      : '💔 Non ti piace più'),
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      // Success feedback suppressed per UX request (no banner on like)
     } catch (e) {
       debugPrint('Errore toggle like: $e');
     }
@@ -1614,20 +1622,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       // Ricarica anche la lista dei preferiti
       _loadFavoriteDreams();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isFavorite
-                ? (Localizations.localeOf(context).languageCode == 'en'
-                      ? '⭐ Dream added to favorites!'
-                      : '⭐ Sogno aggiunto ai preferiti!')
-                : (Localizations.localeOf(context).languageCode == 'en'
-                      ? '📝 Dream removed from favorites'
-                      : '📝 Sogno rimosso dai preferiti'),
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      // Success feedback suppressed per UX request (no banner on favorite)
     } catch (e) {
       debugPrint('Errore toggle preferiti: $e');
     }
@@ -1656,7 +1651,6 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
       setState(() {
         _userLikedComments[commentId] = result['isLiked'];
         _commentLikeCounts[commentId] = result['likeCount'];
-        _commentsUpdateCounter++;
       });
 
       // Se siamo nel dialogo, aggiorna anche l'UI del dialogo
@@ -1670,20 +1664,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
         'Debug: New state - liked: ${_userLikedComments[commentId]}, count: ${_commentLikeCounts[commentId]}',
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['isLiked']
-                ? (Localizations.localeOf(context).languageCode == 'en'
-                      ? '❤️ You liked this comment!'
-                      : '❤️ Ti piace questo commento!')
-                : (Localizations.localeOf(context).languageCode == 'en'
-                      ? '💔 You no longer like this comment'
-                      : '💔 Non ti piace più questo commento'),
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      // Success feedback suppressed per UX request (no banner on comment-like)
 
       // Verifica dopo un breve delay che i valori siano ancora corretti
       Future.delayed(Duration(milliseconds: 100), () {
@@ -1817,23 +1798,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
 
                     // Incrementa il counter per forzare l'aggiornamento
                     setState(() {
-                      _commentsUpdateCounter++;
+                      // trigger UI update after editing comment
                     });
 
                     // Chiudi il dialog dei commenti e riaprilo per mostrare la lista aggiornata
                     Navigator.of(context).pop();
                     _showCommentsDialog(dream);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          Localizations.localeOf(context).languageCode == 'en'
-                              ? '✏️ Comment updated successfully!'
-                              : '✏️ Commento aggiornato con successo!',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    // Success feedback suppressed per UX request (no banner on edit comment)
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1916,7 +1888,6 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           final comments = await _socialService.getDreamComments(dream.id);
           setState(() {
             _dreamCommentCounts[dream.id] = comments.length;
-            _commentsUpdateCounter++;
             // Rimuovi i dati del like per il commento eliminato
             _commentLikeCounts.remove(commentId);
             _userLikedComments.remove(commentId);
@@ -1929,16 +1900,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
           Navigator.of(dialogContext).pop();
           _showCommentsDialog(dream);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? '🗑️ Comment deleted successfully!'
-                    : '🗑️ Commento eliminato con successo!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // Success feedback suppressed per UX request (no banner on delete comment)
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

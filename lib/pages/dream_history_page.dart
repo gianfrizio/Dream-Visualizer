@@ -108,15 +108,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                     await _storageService.clearCorruptedData();
                     debugPrint('Dati puliti, ricaricamento...');
                     _loadDreams();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Dati corrotti puliti. I sogni precedenti sono stati rimossi.',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    // Success feedback suppressed per UX request (corrupted data cleaned)
                   } catch (clearError) {
                     debugPrint('Errore durante la pulizia: $clearError');
                     if (!mounted) return;
@@ -139,14 +131,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                     _dreams = [];
                     _isLoading = false;
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Caricamento bypassato. Puoi creare nuovi sogni.',
-                      ),
-                      backgroundColor: Colors.blue,
-                    ),
-                  );
+                  // Success feedback suppressed per UX request (loading bypassed)
                 },
                 style: TextButton.styleFrom(foregroundColor: Colors.blue),
                 child: const Text('Salta caricamento'),
@@ -185,9 +170,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
       await _storageService.deleteDream(dream.id);
       _loadDreams();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(localizations.dreamDeleted)));
+        // Success feedback suppressed per UX request (dream deleted)
       }
     }
   }
@@ -218,9 +201,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
       await _storageService.deleteAllDreams();
       _loadDreams();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(localizations.allDreamsDeleted)));
+        // Success feedback suppressed per UX request (all dreams deleted)
       }
     }
   }
@@ -233,15 +214,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
       );
       _loadDreams(); // Refresh the list to show updated status
 
-      final message = dream.isSharedWithCommunity
-          ? 'Sogno rimosso dalla community'
-          : 'Sogno condiviso con la community';
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
+      // Success feedback suppressed per UX request (toggle community sharing)
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -280,24 +253,10 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
             ),
         ],
       ),
+      // Keep scaffold body transparent so the global StarryBackground from
+      // `main.dart` is visible behind all pages.
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD),
-                    const Color(0xFFF7F8FC),
-                    const Color(0xFFF0F4FF),
-                  ]
-                : [
-                    const Color(0xFF0F172A),
-                    const Color(0xFF1E293B),
-                    const Color(0xFF334155),
-                  ],
-          ),
-        ),
+        color: Colors.transparent,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ((_dreams.isEmpty && !_showFavorites) ||
@@ -455,15 +414,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                                   _favoriteIds.remove(dream.id);
                                 }
                               });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    added
-                                        ? 'Aggiunto ai preferiti'
-                                        : 'Rimosso dai preferiti',
-                                  ),
-                                ),
-                              );
+                              // Success feedback suppressed per UX request (no banner on favorite toggle)
                             }
                           } catch (_) {}
                         },
@@ -483,7 +434,49 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                       ),
                       // Pulsante condivisione community
                       IconButton(
-                        onPressed: () => _toggleCommunitySharing(dream),
+                        onPressed: () async {
+                          // show confirmation dialog before toggling community sharing
+                          final bool? confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text(
+                                dream.isSharedWithCommunity
+                                    ? localizations.unshare
+                                    : localizations.share,
+                              ),
+                              content: Text(
+                                (dream.isSharedWithCommunity
+                                        ? localizations.confirmUnshareMessage
+                                        : localizations.confirmShareMessage)
+                                    .replaceAll('{title}', dream.title),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: Text(localizations.cancel),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: dream.isSharedWithCommunity
+                                        ? Colors.red
+                                        : null,
+                                  ),
+                                  child: Text(
+                                    dream.isSharedWithCommunity
+                                        ? localizations.unshare
+                                        : localizations.share,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await _toggleCommunitySharing(dream);
+                          }
+                        },
                         icon: Icon(
                           dream.isSharedWithCommunity
                               ? Icons.people

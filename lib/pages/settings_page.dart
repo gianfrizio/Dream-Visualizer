@@ -50,175 +50,180 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      // Transparent body so global background is visible behind settings
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
-                    const Color(0xFFF7F8FC), // Bianco con hint di viola
-                    const Color(
-                      0xFFF0F4FF,
-                    ), // Bianco con tocco di blu molto tenue
-                  ]
-                : [
-                    const Color(0xFF0F172A), // Blu scuro profondo
-                    const Color(0xFF1E293B), // Blu scuro medio
-                    const Color(0xFF334155), // Grigio-blu
-                  ],
+        color: Colors.transparent,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Container(
+                // This is the dedicated rounded container for the menu (restored)
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Sezione lingua
+                      _buildSection(
+                        title: localizations.language,
+                        children: [
+                          _buildSettingsTile(
+                            icon: Icons.language_rounded,
+                            title: localizations.changeLanguage,
+                            subtitle: 'Italiano / English',
+                            onTap: () => _showLanguageDialog(localizations),
+                            color: const Color(0xFF6366F1),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sezione tema
+                      _buildSection(
+                        title: localizations.themeSettings,
+                        children: [_buildThemeSelector(localizations)],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Sezione animazioni (toggle to disable background animations/videos)
+                      _buildSection(
+                        title: localizations.enableAnimatedBackgrounds,
+                        children: [
+                          _buildSwitchTile(
+                            icon: Icons.movie_filter,
+                            title: localizations.enableAnimatedBackgrounds,
+                            value: widget.themeService.animationsEnabled,
+                            onChanged: (v) async {
+                              await widget.themeService.setAnimationsEnabled(v);
+                              // Rebuild to apply immediately
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sezione dati
+                      _buildSection(
+                        title: localizations.dataManagement,
+                        children: [
+                          _buildSettingsTile(
+                            icon: Icons.delete_sweep,
+                            title: localizations.deleteAllDreamsSettings,
+                            subtitle: localizations.removeAllSavedDreams,
+                            onTap: () => _showDeleteAllDialog(localizations),
+                            color: Colors.red,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sezione Sicurezza
+                      _buildSection(
+                        title: localizations.security,
+                        children: [
+                          Consumer<BiometricAuthService>(
+                            builder: (context, biometricService, child) {
+                              return FutureBuilder<bool>(
+                                future: biometricService
+                                    .checkBiometricSupport(),
+                                builder: (context, snapshot) {
+                                  final isSupported = snapshot.data ?? false;
+                                  return _buildSwitchTile(
+                                    icon: Icons.fingerprint,
+                                    title: localizations.biometricLock,
+                                    subtitle:
+                                        localizations.biometricDescription,
+                                    value: biometricService.isBiometricEnabled,
+                                    onChanged: isSupported
+                                        ? (value) async {
+                                            if (value) {
+                                              await biometricService
+                                                  .enableBiometric();
+                                            } else {
+                                              await biometricService
+                                                  .disableBiometric();
+                                            }
+                                          }
+                                        : null,
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          _buildInfoCard(
+                            icon: Icons.security,
+                            title: localizations.dataEncryption,
+                            description: localizations.encryptionDescription,
+                            color: Colors.green,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sezione app
+                      _buildSection(
+                        title: localizations.appInfo,
+                        children: [
+                          _buildSettingsTile(
+                            icon: Icons.info_outline,
+                            title: localizations.version,
+                            subtitle: '0.1.0',
+                            onTap: null,
+                          ),
+                          _buildSettingsTile(
+                            icon: Icons.developer_mode,
+                            title: localizations.developedBy,
+                            subtitle: localizations.dreamVisualizerTeam,
+                            onTap: null,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sezione AI
+                      _buildSection(
+                        title: localizations.aiFunctionality,
+                        children: [
+                          _buildInfoCard(
+                            icon: Icons.psychology,
+                            title: localizations.dreamInterpretationFeature,
+                            description: localizations.poweredByGPT4,
+                            color: Colors.green,
+                          ),
+                          _buildInfoCard(
+                            icon: Icons.image,
+                            title: localizations.imageGeneration,
+                            description: localizations.poweredByDalle,
+                            color: Colors.blue,
+                          ),
+                          _buildInfoCard(
+                            icon: Icons.mic,
+                            title: localizations.speechRecognition,
+                            description: localizations.speechToTextIntegrated,
+                            color: Colors.orange,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Sezione lingua
-            _buildSection(
-              title: localizations.language,
-              children: [
-                _buildSettingsTile(
-                  icon: Icons.language_rounded,
-                  title: localizations.changeLanguage,
-                  subtitle: 'Italiano / English',
-                  onTap: () => _showLanguageDialog(localizations),
-                  color: const Color(0xFF6366F1),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sezione tema
-            _buildSection(
-              title: localizations.themeSettings,
-              children: [_buildThemeSelector(localizations)],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Sezione animazioni (toggle to disable background animations/videos)
-            _buildSection(
-              title: localizations.enableAnimatedBackgrounds,
-              children: [
-                _buildSwitchTile(
-                  icon: Icons.movie_filter,
-                  title: localizations.enableAnimatedBackgrounds,
-                  value: widget.themeService.animationsEnabled,
-                  onChanged: (v) async {
-                    await widget.themeService.setAnimationsEnabled(v);
-                    // Rebuild to apply immediately
-                    if (mounted) setState(() {});
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sezione dati
-            _buildSection(
-              title: localizations.dataManagement,
-              children: [
-                _buildSettingsTile(
-                  icon: Icons.delete_sweep,
-                  title: localizations.deleteAllDreamsSettings,
-                  subtitle: localizations.removeAllSavedDreams,
-                  onTap: () => _showDeleteAllDialog(localizations),
-                  color: Colors.red,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sezione Sicurezza
-            _buildSection(
-              title: localizations.security,
-              children: [
-                Consumer<BiometricAuthService>(
-                  builder: (context, biometricService, child) {
-                    return FutureBuilder<bool>(
-                      future: biometricService.checkBiometricSupport(),
-                      builder: (context, snapshot) {
-                        final isSupported = snapshot.data ?? false;
-                        return _buildSwitchTile(
-                          icon: Icons.fingerprint,
-                          title: localizations.biometricLock,
-                          subtitle: localizations.biometricDescription,
-                          value: biometricService.isBiometricEnabled,
-                          onChanged: isSupported
-                              ? (value) async {
-                                  if (value) {
-                                    await biometricService.enableBiometric();
-                                  } else {
-                                    await biometricService.disableBiometric();
-                                  }
-                                }
-                              : null,
-                        );
-                      },
-                    );
-                  },
-                ),
-                _buildInfoCard(
-                  icon: Icons.security,
-                  title: localizations.dataEncryption,
-                  description: localizations.encryptionDescription,
-                  color: Colors.green,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sezione app
-            _buildSection(
-              title: localizations.appInfo,
-              children: [
-                _buildSettingsTile(
-                  icon: Icons.info_outline,
-                  title: localizations.version,
-                  subtitle: '0.1.0',
-                  onTap: null,
-                ),
-                _buildSettingsTile(
-                  icon: Icons.developer_mode,
-                  title: localizations.developedBy,
-                  subtitle: localizations.dreamVisualizerTeam,
-                  onTap: null,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sezione AI
-            _buildSection(
-              title: localizations.aiFunctionality,
-              children: [
-                _buildInfoCard(
-                  icon: Icons.psychology,
-                  title: localizations.dreamInterpretationFeature,
-                  description: localizations.poweredByGPT4,
-                  color: Colors.green,
-                ),
-                _buildInfoCard(
-                  icon: Icons.image,
-                  title: localizations.imageGeneration,
-                  description: localizations.poweredByDalle,
-                  color: Colors.blue,
-                ),
-                _buildInfoCard(
-                  icon: Icons.mic,
-                  title: localizations.speechRecognition,
-                  description: localizations.speechToTextIntegrated,
-                  color: Colors.orange,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
         ),
       ),
     );
@@ -230,19 +235,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }) {
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.titleMedium?.copyWith(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        );
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            title,
-            style: titleStyle,
-          ),
+          child: Text(title, style: titleStyle),
         ),
         ...children,
       ],
@@ -373,9 +375,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await _storageService.deleteAllDreams();
       setState(() => _dreamsCount = 0);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(localizations.allDreamsDeleted)));
+        // Success feedback suppressed per UX request (no snackbar on delete all)
       }
     }
   }
@@ -595,33 +595,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           if (context.mounted) {
             Navigator.of(context).pop();
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(localizations.languageChanged),
-                          Text(
-                            localizations.restartForFullEffect,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-
+            // Success feedback suppressed per UX request (language changed)
             // Ricarica la pagina per aggiornare la lingua
             setState(() {});
           }

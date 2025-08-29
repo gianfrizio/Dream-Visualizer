@@ -35,7 +35,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
   @override
   void initState() {
     super.initState();
-  // initState
+    // initState
     final obs = widget.routeObserver;
     if (obs != null) {
       _routeAware = _RouteListener(onRouteChanged: _onRouteChanged);
@@ -157,7 +157,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
 
   @override
   Widget build(BuildContext context) {
-  // build
+    // build
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context);
 
@@ -172,7 +172,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
         ),
-          child: Padding(
+        child: Padding(
           // More compact vertical padding to reduce the menu footprint
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
@@ -187,7 +187,7 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                 buttonKey: historyButtonKey,
               ),
               _buildItem(
-    icon: Icons.people_rounded,
+                icon: Icons.people_rounded,
                 label: localizations?.community ?? 'Community',
                 index: 1,
                 color: const Color(0xFF10B981),
@@ -204,8 +204,8 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                         (states) => Colors.white.withOpacity(0.12),
                       ),
                       child: Container(
-      width: 86,
-      height: 48,
+                        width: 86,
+                        height: 48,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -218,17 +218,17 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                           // above the menu on some devices.
                         ),
                         child: Center(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                localizations?.sogna ?? 'Sogna',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              localizations?.sogna ?? 'Sogna',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
+                          ),
                         ),
                       ),
                     ),

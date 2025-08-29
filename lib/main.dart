@@ -102,15 +102,16 @@ class DreamApp extends StatelessWidget {
           // even when pages draw full-bleed backgrounds. Use IgnorePointer so
           // interactions are unaffected and adjust opacity by theme.
           builder: (context, child) {
-      // Reserve the system bottom inset plus the visual height of the
-      // global menu so the app content never renders underneath it.
-      // `kGlobalBottomMenuHeight` is defined in the global_bottom_menu
-      // widget and represents the menu's visual height (not including
-      // the system navigation bar inset). This ensures consistent
-      // spacing across screens and when the keyboard is open.
-      final double _menuInset = MediaQuery.of(context).viewPadding.bottom +
-        // default to 0 if the constant cannot be resolved (defensive)
-        (kGlobalBottomMenuHeight);
+            // Reserve the system bottom inset plus the visual height of the
+            // global menu so the app content never renders underneath it.
+            // `kGlobalBottomMenuHeight` is defined in the global_bottom_menu
+            // widget and represents the menu's visual height (not including
+            // the system navigation bar inset). This ensures consistent
+            // spacing across screens and when the keyboard is open.
+            final double _menuInset =
+                MediaQuery.of(context).viewPadding.bottom +
+                // default to 0 if the constant cannot be resolved (defensive)
+                (kGlobalBottomMenuHeight);
 
             return Stack(
               children: [
@@ -225,7 +226,9 @@ class DreamApp extends StatelessWidget {
               seedColor: const Color(0xFF6366F1), // Colore primario
               brightness: Brightness.light,
             ),
-            scaffoldBackgroundColor: const Color(0xFFFCFCFD),
+            // Make scaffold background transparent so the global StarryBackground
+            // video shows through on all pages.
+            scaffoldBackgroundColor: Colors.transparent,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -245,7 +248,9 @@ class DreamApp extends StatelessWidget {
               seedColor: const Color(0xFF6366F1), // Stesso colore primario
               brightness: Brightness.dark,
             ),
-            scaffoldBackgroundColor: const Color(0xFF0F172A), // Sfondo scuro
+            // Dark theme scaffold should also be transparent to reveal the
+            // StarryBackground behind pages.
+            scaffoldBackgroundColor: Colors.transparent,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -355,18 +360,8 @@ class _DreamHomePageState extends State<DreamHomePage>
       );
 
       if (result == true) {
-        final granted = await NotificationService().requestPermissions();
-        // Optionally show a small confirmation
-        if (granted && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                localizations?.notificationEnabledConfirmation ??
-                    'Notifications enabled',
-              ),
-            ),
-          );
-        }
+        await NotificationService().requestPermissions();
+        // Success feedback suppressed per UX request (notification permission flow)
       }
 
       await prefs.setBool(_kNotifiedPromptKey, true);
@@ -949,7 +944,7 @@ class _DreamHomePageState extends State<DreamHomePage>
           // beneath the app. Individual cards and panels still use
           // surface colors so legibility is preserved.
           decoration: const BoxDecoration(color: Colors.transparent),
-          
+
           child: SafeArea(
             child: Column(
               children: [

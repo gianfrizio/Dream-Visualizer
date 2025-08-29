@@ -13,8 +13,8 @@ class ThemeService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final themeIndex = prefs.getInt(_themeKey) ?? 0; // 0 = system default
 
-  // Load animations preference (default true)
-  _animationsEnabled = prefs.getBool(_animationsEnabledKey) ?? true;
+    // Load animations preference (default true)
+    _animationsEnabled = prefs.getBool(_animationsEnabledKey) ?? true;
 
     switch (themeIndex) {
       case 0:

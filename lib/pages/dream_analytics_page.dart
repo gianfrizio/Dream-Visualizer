@@ -82,26 +82,9 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      // Transparent body so global background is visible behind analytics
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD), // Bianco purissimo con sfumatura
-                    const Color(0xFFF7F8FC), // Bianco con hint di viola
-                    const Color(
-                      0xFFF0F4FF,
-                    ), // Bianco con tocco di blu molto tenue
-                  ]
-                : [
-                    const Color(0xFF0F172A), // Blu scuro profondo
-                    const Color(0xFF1E293B), // Blu scuro medio
-                    const Color(0xFF334155), // Grigio-blu
-                  ],
-          ),
-        ),
+        color: Colors.transparent,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _generalStats['totalDreams'] == 0

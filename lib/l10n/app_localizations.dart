@@ -244,6 +244,14 @@ class AppLocalizations {
       'comments': 'Commenti',
       'noComments': 'Nessun commento ancora',
       'writeComment': 'Scrivi un commento...',
+      'confirmShareMessage': 'Vuoi condividere "{title}" con la community?',
+      'confirmUnshareMessage': 'Vuoi rimuovere "{title}" dalla community?',
+      'sharedDreamsVisibleInfo':
+          'I sogni condivisi saranno visibili a tutti gli utenti della community.',
+      'alreadySharedMessage': 'Questo sogno è già condiviso con la community.',
+      'shared': 'Condiviso',
+      'unshare': 'Rimuovi condivisione',
+      'sharedWithCommunity': 'Condiviso con la community',
       'reportDream': 'Segnala Sogno',
       'selectReportReason': 'Seleziona il motivo della segnalazione:',
       'inappropriateContent': 'Contenuto inappropriato',
@@ -357,8 +365,8 @@ class AppLocalizations {
       'cancelAction': 'Annulla',
       'clearAndStartNew': 'Cancella e inizia nuovo',
       'clear': 'Cancella',
-    // Animations setting label
-    'enableAnimatedBackgrounds': 'Abilita sfondi animati',
+      // Animations setting label
+      'enableAnimatedBackgrounds': 'Abilita sfondi animati',
     },
     'en': {
       'appTitle': 'Dreamsy',
@@ -582,6 +590,9 @@ class AppLocalizations {
       'retry': 'Retry',
       'noDreamsFound': 'No dreams found',
       'share': 'Share',
+      'shared': 'Shared',
+      'unshare': 'Unshare',
+      'sharedWithCommunity': 'Shared with community',
       'report': 'Report',
       'readMore': 'Read more',
       'dream': 'Dream',
@@ -589,6 +600,14 @@ class AppLocalizations {
       'comments': 'Comments',
       'noComments': 'No comments yet',
       'writeComment': 'Write a comment...',
+      'confirmShareMessage':
+          'Do you want to share "{title}" with the community?',
+      'confirmUnshareMessage':
+          'Do you want to remove "{title}" from the community?',
+      'sharedDreamsVisibleInfo':
+          'Shared dreams will be visible to all community users.',
+      'alreadySharedMessage':
+          'This dream is already shared with the community.',
       'reportDream': 'Report Dream',
       'selectReportReason': 'Select report reason:',
       'inappropriateContent': 'Inappropriate content',
@@ -699,8 +718,8 @@ class AppLocalizations {
       'cancelAction': 'Cancel',
       'clearAndStartNew': 'Clear and Start New',
       'clear': 'Clear',
-    // Animations setting label (keep English text in both languages per UX request)
-    'enableAnimatedBackgrounds': 'Enable animated backgrounds',
+      // Animations setting label (keep English text in both languages per UX request)
+      'enableAnimatedBackgrounds': 'Enable animated backgrounds',
     },
   };
 
@@ -747,6 +766,13 @@ class AppLocalizations {
   String get keepRecordingDreams => translate('keepRecordingDreams');
   String get errorLoadingAnalytics => translate('errorLoadingAnalytics');
   String get errorLoadingDreams => translate('errorLoadingDreams');
+  String get shared => translate('shared');
+  String get unshare => translate('unshare');
+  String get sharedWithCommunity => translate('sharedWithCommunity');
+  String get confirmShareMessage => translate('confirmShareMessage');
+  String get confirmUnshareMessage => translate('confirmUnshareMessage');
+  String get sharedDreamsVisibleInfo => translate('sharedDreamsVisibleInfo');
+  String get alreadySharedMessage => translate('alreadySharedMessage');
   String get recordSomeDreams => translate('recordSomeDreams');
   String get generalStatistics => translate('generalStatistics');
   String get interpreted => translate('interpreted');
@@ -1040,7 +1066,8 @@ class AppLocalizations {
   String get cancelAction => translate('cancelAction');
   String get clearAndStartNew => translate('clearAndStartNew');
   String get clear => translate('clear');
-    String get enableAnimatedBackgrounds => translate('enableAnimatedBackgrounds');
+  String get enableAnimatedBackgrounds =>
+      translate('enableAnimatedBackgrounds');
 }
 
 class _AppLocalizationsDelegate

@@ -801,21 +801,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
       _isLiked = result['isLiked'];
       _likeCount = result['likeCount'];
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isLiked
-              ? (Localizations.localeOf(context).languageCode == 'en'
-                    ? '❤️ You like this dream!'
-                    : '❤️ Ti piace questo sogno!')
-              : (Localizations.localeOf(context).languageCode == 'en'
-                    ? '💔 You no longer like this'
-                    : '💔 Non ti piace più'),
-        ),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    // success SnackBar intentionally removed (keep only error feedback where needed)
   }
 
   void _shareDream() {
@@ -840,17 +826,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
           ? 'Dream shared from DreamVisualizer'
           : 'Sogno condiviso da DreamVisualizer',
     );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isEnglish
-              ? '🔗 Dream shared with link!'
-              : '🔗 Sogno condiviso con link!',
-        ),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // success SnackBar removed for share action
   }
 
   void _showAddCommentDialog() {
@@ -897,15 +873,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
                 await _loadSocialData();
 
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      Localizations.localeOf(context).languageCode == 'en'
-                          ? '💬 Comment added!'
-                          : '💬 Commento aggiunto!',
-                    ),
-                  ),
-                );
+                // success SnackBar for comment publish removed
               }
             },
             child: Text(
@@ -925,20 +893,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
       _isFavorite = isFav;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isFavorite
-              ? (Localizations.localeOf(context).languageCode == 'en'
-                    ? '⭐ Added to favorites!'
-                    : '⭐ Aggiunto ai preferiti!')
-              : (Localizations.localeOf(context).languageCode == 'en'
-                    ? '💔 Removed from favorites'
-                    : '💔 Rimosso dai preferiti'),
-        ),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    // success SnackBar removed for favorite toggle
   }
 
   void _likeComment(Comment comment) async {
@@ -956,20 +911,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['isLiked']
-                ? (Localizations.localeOf(context).languageCode == 'en'
-                      ? '❤️ You like ${comment.author}\'s comment!'
-                      : '❤️ Ti piace il commento di ${comment.author}!')
-                : (Localizations.localeOf(context).languageCode == 'en'
-                      ? '💔 You no longer like ${comment.author}\'s comment'
-                      : '💔 Non ti piace più il commento di ${comment.author}'),
-          ),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      // success SnackBar removed for comment like toggle
     } catch (e) {
       debugPrint('Errore toggle like commento: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1116,16 +1058,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
                           .toList();
                     });
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          Localizations.localeOf(context).languageCode == 'en'
-                              ? '✏️ Comment updated successfully!'
-                              : '✏️ Commento aggiornato con successo!',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    // success SnackBar removed for comment edit
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1206,17 +1139,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
           setState(() {
             _comments.removeWhere((comment) => comment.id == commentId);
           });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? '🗑️ Comment deleted successfully!'
-                    : '🗑️ Commento eliminato con successo!',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // success SnackBar removed for comment deletion
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1246,15 +1169,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
   }
 
   void _editDream() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          Localizations.localeOf(context).languageCode == 'en'
-              ? '✏️ Edit dream (feature in development)'
-              : '✏️ Modifica sogno (funzione in sviluppo)',
-        ),
-      ),
-    );
+    // Edit action informational SnackBar removed
   }
 
   void _deleteDream() {
@@ -1284,15 +1199,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    Localizations.localeOf(context).languageCode == 'en'
-                        ? '🗑️ Dream deleted'
-                        : '🗑️ Sogno eliminato',
-                  ),
-                ),
-              );
+              // success SnackBar removed for dream deletion
             },
             child: Text(
               Localizations.localeOf(context).languageCode == 'en'
@@ -1329,16 +1236,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
           _translatedTags = null;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              currentLang == 'en'
-                  ? '↩️ Original version restored'
-                  : '↩️ Versione originale ripristinata',
-            ),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // Success feedback suppressed per UX request (original version restored)
         return;
       }
 
@@ -1390,32 +1288,14 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
             _isTranslating = false;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                currentLang == 'en'
-                    ? '🌐 Dream translated!'
-                    : '🌐 Sogno tradotto!',
-              ),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // Success feedback suppressed per UX request (dream translated)
         } else {
           // La traduzione non ha prodotto risultati diversi
           setState(() {
             _isTranslating = false;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                currentLang == 'en'
-                    ? '⚠️ Dream is already in target language'
-                    : '⚠️ Il sogno è già nella lingua di destinazione',
-              ),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // Info suppressed per UX request (already in target language)
         }
       } else {
         // La lingua del sogno è già quella target
@@ -1423,16 +1303,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
           _isTranslating = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              currentLang == 'en'
-                  ? '⚠️ Dream is already in target language'
-                  : '⚠️ Il sogno è già nella lingua di destinazione',
-            ),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // Info suppressed per UX request (already in target language)
       }
     } catch (e) {
       debugPrint('Translation error: $e');
@@ -1496,16 +1367,7 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
         });
 
         // Mostra messaggio di conferma
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              currentLang == 'en'
-                  ? '🌐 Comment translated!'
-                  : '🌐 Commento tradotto!',
-            ),
-            duration: Duration(seconds: 1),
-          ),
-        );
+        // Success feedback suppressed per UX request (comment translated)
       } else {
         setState(() {
           _isTranslating = false;

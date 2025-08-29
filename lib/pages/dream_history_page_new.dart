@@ -34,10 +34,8 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        final localizations = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${localizations.errorLoadingDreams}: $e')),
-        );
+        // keep error feedback but do not show intrusive snackbars for non-critical flows
+        // suppressed: previously showed error snackbar here
       }
     }
   }
@@ -90,9 +88,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
       await _storageService.deleteDream(dream.id);
       _loadDreams();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(localizations.dreamDeleted)));
+        // suppressed: don't show snackbar in history per UX request
       }
     }
   }
@@ -144,39 +140,87 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
       await _storageService.deleteAllDreams();
       _loadDreams();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(localizations.allDreamsDeleted)));
+        // suppressed: don't show snackbar in history per UX request
       }
     }
   }
 
   Future<void> _toggleCommunitySharing(SavedDream dream) async {
-    try {
-      await _storageService.updateDreamSharingStatus(
-        dream.id,
-        !dream.isSharedWithCommunity,
-      );
-      _loadDreams(); // Refresh the list to show updated status
+    // Build button styles similar to other dialogs
+    final cancelButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      side: const BorderSide(color: Color(0xFFD1D5DB)),
+    );
+    final confirmButtonStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      foregroundColor: Colors.white,
+      backgroundColor: dream.isSharedWithCommunity
+          ? Colors.orange
+          : Theme.of(context).primaryColor,
+    );
 
-      final message = dream.isSharedWithCommunity
-          ? 'Sogno rimosso dalla community'
-          : 'Sogno condiviso con la community';
+    final localizations = AppLocalizations.of(context)!;
 
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Errore nell\'aggiornamento dello stato di condivisione',
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.share, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              dream.isSharedWithCommunity
+                  ? 'Rimuovi dalla Community'
+                  : 'Condividi con la Community',
+            ),
+          ],
+        ),
+        content: Text(
+          dream.isSharedWithCommunity
+              ? 'Vuoi rimuovere questo sogno dalla community?'
+              : 'Vuoi condividere "${dream.title}" con la community?',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          SizedBox(
+            width: 120,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              style: cancelButtonStyle,
+              child: Text(localizations.cancel),
             ),
           ),
+          SizedBox(
+            width: 140,
+            height: 40,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: confirmButtonStyle,
+              child: Text(
+                dream.isSharedWithCommunity ? 'Rimuovi' : 'Condividi',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _storageService.updateDreamSharingStatus(
+          dream.id,
+          !dream.isSharedWithCommunity,
         );
+        _loadDreams(); // Refresh the list to show updated status
+        // suppressed: no success snackbar in history
+      } catch (e) {
+        if (mounted) {
+          // show error feedback if needed; suppressing SnackBar by UX request
+        }
       }
     }
   }
@@ -184,9 +228,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
   void _showDreamDetails(SavedDream dream) {
     // Qui si può implementare una pagina di dettagli del sogno
     // Per ora mostriamo solo uno SnackBar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Dettagli del sogno: ${dream.title}')),
-    );
+    // suppressed: do not show snackbar in history
   }
 
   @override
@@ -459,7 +501,7 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Condiviso con la community',
+                      AppLocalizations.of(context)!.sharedWithCommunity,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w500,

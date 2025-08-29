@@ -39,25 +39,9 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
+      // Make the page body transparent so the global background shows
       body: Container(
-        // The gradient paints the page background.
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: theme.brightness == Brightness.light
-                ? [
-                    const Color(0xFFFCFCFD),
-                    const Color(0xFFF7F8FC),
-                    const Color(0xFFF0F4FF),
-                  ]
-                : [
-                    const Color(0xFF0F172A),
-                    const Color(0xFF1E293B),
-                    const Color(0xFF334155),
-                  ],
-          ),
-        ),
+        color: Colors.transparent,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -324,15 +308,9 @@ class ProfilePage extends StatelessWidget {
                       Navigator.of(context).pop();
                       final granted = await NotificationService()
                           .requestPermissions();
-                      if (granted && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              localizations.dreamSavedAutomatically,
-                            ),
-                          ),
-                        );
-                      } else if (context.mounted) {
+                      // Don't show the unrelated "dream saved" banner here.
+                      // If permissions were denied, show the dialog message.
+                      if (!granted && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
