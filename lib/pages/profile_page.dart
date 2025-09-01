@@ -5,6 +5,7 @@ import '../services/theme_service.dart';
 import '../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'settings_page.dart';
+import '../widgets/global_bottom_menu.dart';
 
 class ProfilePage extends StatelessWidget {
   final ThemeService? themeService;
@@ -39,11 +40,18 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
-      // Make the page body transparent so the global background shows
+      // Make the page body transparent so the global background shows.
+      // Add a small bottom padding so cards don't visually touch the
+      // global bottom menu overlay by increasing the scroll padding.
       body: Container(
         color: Colors.transparent,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + kGlobalBottomMenuHeight * 0.2,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -237,6 +237,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final titleStyle = theme.textTheme.titleMedium?.copyWith(
       fontSize: 18,
       fontWeight: FontWeight.w600,
+      color: theme.colorScheme.onSurface,
     );
 
     return Column(

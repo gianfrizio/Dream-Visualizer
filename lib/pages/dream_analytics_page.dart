@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../services/dream_analytics_service.dart';
 import '../models/saved_dream.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/global_bottom_menu.dart';
 
 class DreamAnalyticsPage extends StatefulWidget {
   const DreamAnalyticsPage({super.key});
@@ -89,7 +90,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
             ? const Center(child: CircularProgressIndicator())
             : _generalStats['totalDreams'] == 0
             ? _buildEmptyState(localizations, theme)
-            : _buildAnalyticsContent(localizations, theme),
+            : Padding(
+                padding: EdgeInsets.only(bottom: kGlobalBottomMenuHeight * 0.2),
+                child: _buildAnalyticsContent(localizations, theme),
+              ),
       ),
     );
   }
@@ -210,9 +214,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                 const SizedBox(width: 12),
                 Text(
                   localizations.generalStatistics,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -343,9 +348,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                 const SizedBox(width: 12),
                 Text(
                   localizations.emotionAnalysis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -471,9 +477,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                 const SizedBox(width: 12),
                 Text(
                   localizations.dreamsByTimeOfDay,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -575,9 +582,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                 const SizedBox(width: 12),
                 Text(
                   localizations.patternsAndInsights,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -644,9 +652,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                 const SizedBox(width: 12),
                 Text(
                   localizations.recurringKeywords,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -720,9 +729,10 @@ class _DreamAnalyticsPageState extends State<DreamAnalyticsPage> {
                     children: [
                       Text(
                         localizations.recentActivity,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       Text(

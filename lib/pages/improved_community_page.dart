@@ -297,17 +297,18 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   }
 
   Widget _buildWelcomeWidget() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white.withOpacity(0.9) : Colors.black87;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final isEnglish = Localizations.localeOf(context).languageCode == 'en';
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDark
-              ? [Colors.purple.withOpacity(0.3), Colors.blue.withOpacity(0.3)]
-              : [Colors.purple.withOpacity(0.1), Colors.blue.withOpacity(0.1)],
+          colors: [
+            scheme.primaryContainer.withOpacity(0.95),
+            scheme.secondaryContainer.withOpacity(0.9),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -321,7 +322,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: textColor,
+              color: scheme.onPrimaryContainer,
             ),
           ),
           const SizedBox(height: 8),
@@ -329,7 +330,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
             isEnglish
                 ? 'Explore other people\'s dreams, share yours and discover new interpretations!'
                 : 'Esplora i sogni degli altri, condividi i tuoi e scopri nuove interpretazioni!',
-            style: TextStyle(fontSize: 14, color: textColor.withOpacity(0.8)),
+            style: TextStyle(
+              fontSize: 14,
+              color: scheme.onPrimaryContainer.withOpacity(0.92),
+            ),
           ),
         ],
       ),
@@ -353,7 +357,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
+              fillColor: Theme.of(context).colorScheme.surfaceVariant,
             ),
             onChanged: _filterDreams,
           ),
@@ -370,6 +374,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         Localizations.localeOf(context).languageCode == 'en'
                         ? 'Cat.'
                         : 'Cat.',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    labelStyle: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.95),
+                      fontWeight: FontWeight.w600,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -385,7 +397,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                       value: category,
                       child: Text(
                         _getCategoryDisplayName(category),
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     );
                   }).toList(),
@@ -406,6 +421,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         Localizations.localeOf(context).languageCode == 'en'
                         ? 'Lang.'
                         : 'Lingua',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    labelStyle: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.95),
+                      fontWeight: FontWeight.w600,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -421,7 +444,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                       value: language,
                       child: Text(
                         _getLanguageDisplayName(language),
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     );
                   }).toList(),
@@ -442,6 +468,14 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                         Localizations.localeOf(context).languageCode == 'en'
                         ? 'Sort'
                         : 'Ordina',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                    labelStyle: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.95),
+                      fontWeight: FontWeight.w600,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -457,7 +491,10 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                       value: option,
                       child: Text(
                         _getSortDisplayName(option),
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     );
                   }).toList(),

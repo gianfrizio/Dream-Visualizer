@@ -15,6 +15,8 @@ class AppLocalizations {
   // Traduzioni per l'app
   static final Map<String, Map<String, String>> _localizedValues = {
     'it': {
+      'all': 'Tutti',
+      'favorites': 'Preferiti',
       'appTitle': 'Dreamsy',
       'dreamInterpretation': 'Interpretazione dei Sogni',
       'tapToRecord': 'Pronto per registrare',
@@ -369,6 +371,8 @@ class AppLocalizations {
       'enableAnimatedBackgrounds': 'Abilita sfondi animati',
     },
     'en': {
+      'all': 'All',
+      'favorites': 'Favorites',
       'appTitle': 'Dreamsy',
       'dreamInterpretation': 'Dream Interpretation',
       'tapToRecord': 'Tap to record your dream',
@@ -870,6 +874,8 @@ class AppLocalizations {
       translate('yourInterpretedDreamsWillAppearHere');
   String get close => translate('close');
   String get sogna => translate('sogna');
+  String get all => translate('all');
+  String get favorites => translate('favorites');
 
   // Dream Tags getters
   String get tagPositiveDream => translate('tagPositiveDream');

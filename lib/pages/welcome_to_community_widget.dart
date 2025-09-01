@@ -6,7 +6,9 @@ class WelcomeToCommunitWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
+    // Use container colors for better contrast across light/dark themes
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -21,20 +23,24 @@ class WelcomeToCommunitWidget extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    theme.primaryColor.withOpacity(0.8),
-                    theme.primaryColor.withOpacity(0.6),
+                    scheme.primaryContainer.withOpacity(0.95),
+                    scheme.secondaryContainer.withOpacity(0.85),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(60),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.primaryColor.withOpacity(0.3),
+                    color: scheme.primary.withOpacity(0.12),
                     blurRadius: 20,
-                    offset: Offset(0, 10),
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: Icon(Icons.people_alt, size: 60, color: Colors.white),
+              child: Icon(
+                Icons.people_alt,
+                size: 60,
+                color: scheme.onPrimaryContainer,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -42,7 +48,7 @@ class WelcomeToCommunitWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: theme.primaryColor,
+                color: scheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -51,43 +57,49 @@ class WelcomeToCommunitWidget extends StatelessWidget {
               'Qui puoi esplorare i sogni condivisi da altri utenti e condividere i tuoi.',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[600],
+                color: scheme.onSurface.withOpacity(0.8),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             _buildFeatureCard(
+              context: context,
               icon: Icons.explore,
               title: 'Esplora sogni',
               description: 'Scopri interpretazioni e storie affascinanti',
-              color: Colors.blue,
+              color: scheme.primary,
             ),
             const SizedBox(height: 12),
             _buildFeatureCard(
+              context: context,
               icon: Icons.share,
               title: 'Condividi',
               description: 'Rendi pubblici i tuoi sogni in modo anonimo',
-              color: Colors.green,
+              color: scheme.secondary,
             ),
             const SizedBox(height: 12),
             _buildFeatureCard(
+              context: context,
               icon: Icons.comment,
               title: 'Commenta',
               description: 'Interagisci con altri sognatori',
-              color: Colors.orange,
+              color: scheme.secondary,
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () {
                 // Scroll alla scheda "I Miei Sogni" o mostra dialog condivisione
               },
-              icon: Icon(Icons.add_circle),
+              icon: const Icon(Icons.add_circle),
               label: Text('Inizia condividendo un sogno'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(25),
                 ),
@@ -100,6 +112,7 @@ class WelcomeToCommunitWidget extends StatelessWidget {
   }
 
   Widget _buildFeatureCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String description,
@@ -109,9 +122,9 @@ class WelcomeToCommunitWidget extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: [
@@ -119,7 +132,7 @@ class WelcomeToCommunitWidget extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.18),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(icon, color: color, size: 20),

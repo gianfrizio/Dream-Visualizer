@@ -111,7 +111,9 @@ class DreamApp extends StatelessWidget {
             final double _menuInset =
                 MediaQuery.of(context).viewPadding.bottom +
                 // default to 0 if the constant cannot be resolved (defensive)
-                (kGlobalBottomMenuHeight);
+                (kGlobalBottomMenuHeight) +
+                // extra spacing so page content doesn't brush the nav bar
+                8.0;
 
             return Stack(
               children: [
@@ -219,50 +221,77 @@ class DreamApp extends StatelessWidget {
           ],
           supportedLocales: const [Locale('it', 'IT'), Locale('en', 'US')],
           themeMode: themeService.themeMode, // Usa il tema dal servizio
-          theme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.light,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF6366F1), // Colore primario
+          theme: (() {
+            final lightScheme = ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6366F1),
               brightness: Brightness.light,
-            ),
-            // Make scaffold background transparent so the global StarryBackground
-            // video shows through on all pages.
-            scaffoldBackgroundColor: Colors.transparent,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              centerTitle: true,
-              titleTextStyle: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
+            );
+            return ThemeData(
+              useMaterial3: true,
+              colorScheme: lightScheme,
+              // Ensure section/title text contrasts well on light backgrounds.
+              textTheme: TextTheme(
+                titleLarge: TextStyle(
+                  color: lightScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+                titleMedium: TextStyle(
+                  color: lightScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+                titleSmall: TextStyle(color: lightScheme.onSurface),
               ),
-              iconTheme: IconThemeData(color: Color(0xFF2D3748)),
-            ),
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF6366F1), // Stesso colore primario
+              // Make scaffold background transparent so the global StarryBackground
+              // video shows through on all pages.
+              scaffoldBackgroundColor: Colors.transparent,
+              appBarTheme: AppBarTheme(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                titleTextStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: lightScheme.onSurface,
+                ),
+                iconTheme: IconThemeData(color: lightScheme.onSurface),
+              ),
+            );
+          })(),
+          darkTheme: (() {
+            final darkScheme = ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6366F1),
               brightness: Brightness.dark,
-            ),
-            // Dark theme scaffold should also be transparent to reveal the
-            // StarryBackground behind pages.
-            scaffoldBackgroundColor: Colors.transparent,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              centerTitle: true,
-              titleTextStyle: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            );
+            return ThemeData(
+              useMaterial3: true,
+              colorScheme: darkScheme,
+              textTheme: TextTheme(
+                titleLarge: TextStyle(
+                  color: darkScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+                titleMedium: TextStyle(
+                  color: darkScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+                titleSmall: TextStyle(color: darkScheme.onSurface),
               ),
-              iconTheme: IconThemeData(color: Colors.white),
-            ),
-          ),
+              // Dark theme scaffold should also be transparent to reveal the
+              // StarryBackground behind pages.
+              scaffoldBackgroundColor: Colors.transparent,
+              appBarTheme: AppBarTheme(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                titleTextStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: darkScheme.onSurface,
+                ),
+                iconTheme: IconThemeData(color: darkScheme.onSurface),
+              ),
+            );
+          })(),
           home: DreamHomePage(
             languageService: languageService,
             themeService: themeService,
@@ -993,52 +1022,69 @@ class _DreamHomePageState extends State<DreamHomePage>
                   ),
                 ),
 
-                // Contenuto principale - Espandibile per riempire spazio disponibile
+                // Contenuto principale - render as a scrollable area so the
+                // keyboard and expanding suggestions do not cause bottom overflow.
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                    child: Column(
-                      children: [
-                        // (RIMOSSO) Status Info Card durante la registrazione
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        padding: EdgeInsets.only(
+                          bottom:
+                              MediaQuery.of(context).viewInsets.bottom +
+                              kGlobalBottomMenuHeight +
+                              16,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                            child: Column(
+                              children: [
+                                // Dream Input Area (stile WhatsApp)
+                                _buildDreamInputArea(theme, localizations),
+                                const SizedBox(height: 20),
 
-                        // Dream Input Area (stile WhatsApp)
-                        _buildDreamInputArea(theme, localizations),
-                        const SizedBox(height: 20),
+                                // Bottoni principali (sempre visibili)
+                                _buildMainActionButtons(theme, localizations),
 
-                        // Bottoni principali (sempre visibili)
-                        _buildMainActionButtons(theme, localizations),
+                                // Spacing between action buttons and the suggestions box
+                                const SizedBox(height: 16),
 
-                        // Spacing between action buttons and the suggestions box
-                        const SizedBox(height: 16),
+                                // Suggestion box placed directly below the main action
+                                // buttons. Keep view insets so the suggestions can
+                                // move above the keyboard when necessary.
+                                MediaQuery.removeViewInsets(
+                                  context: context,
+                                  removeBottom: false,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12.0,
+                                      ),
+                                      child: _interpretation.isNotEmpty
+                                          ? _buildInterpretationCard(
+                                              theme,
+                                              localizations,
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                ),
 
-                        // Suggestion box placed directly below the main action
-                        // buttons (no Expanded). We remove bottom view insets so
-                        // the card doesn't move when the keyboard opens, and add
-                        // a small fixed bottom padding to keep distance from the
-                        // global menu.
-                        MediaQuery.removeViewInsets(
-                          context: context,
-                          removeBottom: true,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: _interpretation.isNotEmpty
-                                  ? _buildInterpretationCard(
-                                      theme,
-                                      localizations,
-                                    )
-                                  : const SizedBox.shrink(),
+                                // Dream Image Card (se presente)
+                                if (_imageUrl.isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  _buildDreamImageCard(theme, localizations),
+                                ],
+                              ],
                             ),
                           ),
                         ),
-
-                        // Dream Image Card (se presente)
-                        if (_imageUrl.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          _buildDreamImageCard(theme, localizations),
-                        ],
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],

@@ -10,10 +10,11 @@ import '../pages/dream_analytics_page.dart';
 final GlobalKey historyButtonKey = GlobalKey();
 
 // Public constant representing the visual height of the global bottom menu.
-// Make it compact so it doesn't occupy excessive vertical space on pages
-// like the interpretation view. System bottom inset (navigation bar)
-// remains separate.
-const double kGlobalBottomMenuHeight = 52.0;
+// The real rendered menu is slightly taller than 48 due to internal
+// paddings and the central pill button. Bump this value so app content
+// is consistently padded above the menu and doesn't brush the system
+// navigation bar on devices with different insets.
+const double kGlobalBottomMenuHeight = 64.0;
 
 class GlobalBottomMenu extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
@@ -161,72 +162,81 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context);
 
-    final main = Container(
-      // Avoid an extra SafeArea here; callers should account for system
-      // insets if they reserve space using `kGlobalBottomMenuHeight`.
-      // This reduces the stacked vertical footprint on pages that already
-      // used SafeArea.
-      child: Container(
-        // Use scaffoldBackgroundColor so the menu visually merges with
-        // the app's background and no seam appears between content and the menu.
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-        ),
+    // Center the menu inside a rounded box so it appears as a single
+    // floating panel (matches the provided mock image).
+    final main = Center(
+      child: ConstrainedBox(
+        // Allow full-width on all devices so the box touches screen edges
+        constraints: const BoxConstraints(maxWidth: double.infinity),
         child: Padding(
-          // More compact vertical padding to reduce the menu footprint
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildItem(
-                icon: Icons.history_rounded,
-                label: localizations?.history ?? 'History',
-                index: 0,
-                color: const Color(0xFF8B5CF6),
-                theme: theme,
-                buttonKey: historyButtonKey,
-              ),
-              _buildItem(
-                icon: Icons.people_rounded,
-                label: localizations?.community ?? 'Community',
-                index: 1,
-                color: const Color(0xFF10B981),
-                theme: theme,
-              ),
-              Expanded(
-                child: Center(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _navigateTo(2),
-                      borderRadius: BorderRadius.circular(16),
-                      overlayColor: MaterialStateProperty.resolveWith(
-                        (states) => Colors.white.withOpacity(0.12),
-                      ),
-                      child: Container(
-                        width: 86,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF667EEA),
-                              const Color(0xFF764BA2),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          // No boxShadow: remove subtle dark band that appeared
-                          // above the menu on some devices.
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.zero,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildItem(
+                  icon: Icons.history_rounded,
+                  label: localizations?.history ?? 'History',
+                  index: 0,
+                  color: const Color(0xFF8B5CF6),
+                  theme: theme,
+                  buttonKey: historyButtonKey,
+                ),
+                _buildItem(
+                  icon: Icons.people_rounded,
+                  label: localizations?.community ?? 'Community',
+                  index: 1,
+                  color: const Color(0xFF10B981),
+                  theme: theme,
+                ),
+
+                // Central action: prominent pill button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _navigateTo(2),
+                    borderRadius: BorderRadius.circular(18),
+                    overlayColor: MaterialStateProperty.resolveWith(
+                      (states) => Colors.white.withOpacity(0.12),
+                    ),
+                    child: Container(
+                      width: 84,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
                         ),
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              localizations?.sogna ?? 'Sogna',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.28),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            localizations?.sogna ?? 'Sogna',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
                         ),
@@ -234,22 +244,23 @@ class _GlobalBottomMenuState extends State<GlobalBottomMenu> {
                     ),
                   ),
                 ),
-              ),
-              _buildItem(
-                icon: Icons.analytics_rounded,
-                label: localizations?.analytics ?? 'Analytics',
-                index: 3,
-                color: const Color(0xFF0EA5E9),
-                theme: theme,
-              ),
-              _buildItem(
-                icon: Icons.person_rounded,
-                label: localizations?.profile ?? 'Profile',
-                index: 4,
-                color: const Color(0xFFF59E0B),
-                theme: theme,
-              ),
-            ],
+
+                _buildItem(
+                  icon: Icons.analytics_rounded,
+                  label: localizations?.analytics ?? 'Analytics',
+                  index: 3,
+                  color: const Color(0xFF0EA5E9),
+                  theme: theme,
+                ),
+                _buildItem(
+                  icon: Icons.person_rounded,
+                  label: localizations?.profile ?? 'Profile',
+                  index: 4,
+                  color: const Color(0xFFF59E0B),
+                  theme: theme,
+                ),
+              ],
+            ),
           ),
         ),
       ),

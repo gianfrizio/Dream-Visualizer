@@ -34,7 +34,8 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
     try {
       final favs = await _favoritesService.getFavoriteDreams();
       setState(() {
-        _favoriteDreams = favs;
+        // Show most recently added favorites first (last saved in storage -> top)
+        _favoriteDreams = favs.reversed.toList();
         _favoriteIds.clear();
         _favoriteIds.addAll(favs.map((d) => d.id));
       });
@@ -273,32 +274,73 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: TextButton(
-                            onPressed: () => setState(() {
-                              _showFavorites = false;
-                            }),
-                            style: TextButton.styleFrom(
-                              foregroundColor: _showFavorites
-                                  ? theme.colorScheme.onSurface
-                                  : theme.colorScheme.primary,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _showFavorites = false),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_showFavorites
+                                    ? theme.colorScheme.primaryContainer
+                                    : theme.colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: !_showFavorites
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  localizations.all,
+                                  style: TextStyle(
+                                    color: !_showFavorites
+                                        ? theme.colorScheme.onPrimaryContainer
+                                        : theme.colorScheme.onSurface,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ),
-                            child: Text('Tutti'),
                           ),
                         ),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: TextButton(
-                            onPressed: () async {
+                          child: GestureDetector(
+                            onTap: () async {
                               await _loadFavorites();
-                              setState(() {
-                                _showFavorites = true;
-                              });
+                              setState(() => _showFavorites = true);
                             },
-                            style: TextButton.styleFrom(
-                              foregroundColor: _showFavorites
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _showFavorites
+                                    ? theme.colorScheme.primaryContainer
+                                    : theme.colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _showFavorites
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  localizations.favorites,
+                                  style: TextStyle(
+                                    color: _showFavorites
+                                        ? theme.colorScheme.onPrimaryContainer
+                                        : theme.colorScheme.onSurface,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ),
-                            child: Text('Preferiti'),
                           ),
                         ),
                       ],
