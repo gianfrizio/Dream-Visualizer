@@ -1022,69 +1022,49 @@ class _DreamHomePageState extends State<DreamHomePage>
                   ),
                 ),
 
-                // Contenuto principale - render as a scrollable area so the
-                // keyboard and expanding suggestions do not cause bottom overflow.
+                // Contenuto principale - non-scrollable per evitare scrolling
+                // della homepage. Manteniamo padding fisso e comportamento
+                // stabile rispetto alla tastiera (resizeToAvoidBottomInset=false).
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        physics: const ClampingScrollPhysics(),
-                        padding: EdgeInsets.only(
-                          bottom:
-                              MediaQuery.of(context).viewInsets.bottom +
-                              kGlobalBottomMenuHeight +
-                              16,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                            child: Column(
-                              children: [
-                                // Dream Input Area (stile WhatsApp)
-                                _buildDreamInputArea(theme, localizations),
-                                const SizedBox(height: 20),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    child: Column(
+                      children: [
+                        // Dream Input Area (stile WhatsApp)
+                        _buildDreamInputArea(theme, localizations),
+                        const SizedBox(height: 20),
 
-                                // Bottoni principali (sempre visibili)
-                                _buildMainActionButtons(theme, localizations),
+                        // Bottoni principali (sempre visibili)
+                        _buildMainActionButtons(theme, localizations),
 
-                                // Spacing between action buttons and the suggestions box
-                                const SizedBox(height: 16),
+                        // Spacing between action buttons and the suggestions box
+                        const SizedBox(height: 16),
 
-                                // Suggestion box placed directly below the main action
-                                // buttons. Keep view insets so the suggestions can
-                                // move above the keyboard when necessary.
-                                MediaQuery.removeViewInsets(
-                                  context: context,
-                                  removeBottom: false,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12.0,
-                                      ),
-                                      child: _interpretation.isNotEmpty
-                                          ? _buildInterpretationCard(
-                                              theme,
-                                              localizations,
-                                            )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  ),
-                                ),
-
-                                // Dream Image Card (se presente)
-                                if (_imageUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  _buildDreamImageCard(theme, localizations),
-                                ],
-                              ],
+                        // Suggestion box placed directly below the main action
+                        // buttons. We keep it non-scrollable and fixed in layout.
+                        MediaQuery.removeViewInsets(
+                          context: context,
+                          removeBottom: false,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: _interpretation.isNotEmpty
+                                  ? _buildInterpretationCard(
+                                      theme,
+                                      localizations,
+                                    )
+                                  : const SizedBox.shrink(),
                             ),
                           ),
                         ),
-                      );
-                    },
+
+                        // Dream Image Card (se presente)
+                        if (_imageUrl.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _buildDreamImageCard(theme, localizations),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1149,6 +1129,12 @@ class _DreamHomePageState extends State<DreamHomePage>
                 ),
                 onChanged: (text) {
                   setState(() {
+                    // If suggestions box is expanded and the user starts typing,
+                    // collapse it so it doesn't occupy too much space.
+                    if (_suggestionsExpanded && text.trim().isNotEmpty) {
+                      _suggestionsExpanded = false;
+                    }
+
                     _transcription = text;
                     _showingAdvice =
                         true; // Torna a mostrare gli advice quando si modifica il testo
