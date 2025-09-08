@@ -109,7 +109,7 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ### 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+All rights reserved. This project is proprietary software and is not licensed for public use, modification, or distribution.
 
 ### 🙏 Acknowledgments
 
@@ -225,7 +225,7 @@ I contributi sono benvenuti! Sentiti libero di inviare pull request o aprire iss
 
 ### 📄 Licenza
 
-Questo progetto è sotto licenza MIT - vedi il file [LICENSE](LICENSE) per i dettagli.
+Tutti i diritti riservati. Questo progetto è software proprietario e non è concesso in licenza per uso pubblico, modifica o distribuzione.
 
 ### 🙏 Ringraziamenti
 
