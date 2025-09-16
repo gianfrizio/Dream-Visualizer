@@ -1502,14 +1502,20 @@ class _DreamHomePageState extends State<DreamHomePage>
                       final maxWidth = constraints.maxWidth.isFinite
                           ? constraints.maxWidth
                           : MediaQuery.of(context).size.width;
-                      final maxHeight = (maxWidth * 0.6).clamp(140.0, 300.0);
+                      final mq = MediaQuery.of(context);
+                      final isSmallPhone = mq.size.width <= 360;
+                      final maxHeight = isSmallPhone
+                          ? (maxWidth * 0.6).clamp(140.0, 300.0)
+                          : (maxWidth * 0.6);
                       return ConstrainedBox(
                         constraints: BoxConstraints(maxHeight: maxHeight),
                         child: Image.network(
                           _imageUrl,
                           width: double.infinity,
                           height: maxHeight,
-                          fit: BoxFit.contain,
+                          fit: MediaQuery.of(context).size.width <= 360
+                              ? BoxFit.contain
+                              : BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(

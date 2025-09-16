@@ -405,7 +405,11 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                       final maxWidth = constraints.maxWidth.isFinite
                           ? constraints.maxWidth
                           : MediaQuery.of(context).size.width;
-                      final maxHeight = (maxWidth * 0.6).clamp(140.0, 360.0);
+                      final mq = MediaQuery.of(context);
+                      final isSmallPhone = mq.size.width <= 360;
+                      final maxHeight = isSmallPhone
+                          ? (maxWidth * 0.6).clamp(140.0, 360.0)
+                          : (maxWidth * 0.6);
                       return ConstrainedBox(
                         constraints: BoxConstraints(
                           maxWidth: double.infinity,
@@ -419,7 +423,9 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                                   dream.localImagePath!.isNotEmpty
                               ? Image.file(
                                   File(dream.localImagePath!),
-                                  fit: BoxFit.contain,
+                                  fit: MediaQuery.of(context).size.width <= 360
+                                      ? BoxFit.contain
+                                      : BoxFit.cover,
                                   width: double.infinity,
                                   height: maxHeight,
                                 )
@@ -427,7 +433,9 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                                     dream.imageUrl!.isNotEmpty
                               ? Image.network(
                                   dream.imageUrl!,
-                                  fit: BoxFit.contain,
+                                  fit: MediaQuery.of(context).size.width <= 360
+                                      ? BoxFit.contain
+                                      : BoxFit.cover,
                                   width: double.infinity,
                                   height: maxHeight,
                                 )

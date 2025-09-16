@@ -274,14 +274,20 @@ class DreamDetailsPage extends StatelessWidget {
                 final maxWidth = constraints.maxWidth.isFinite
                     ? constraints.maxWidth
                     : MediaQuery.of(context).size.width;
-                final maxHeight = (maxWidth * 0.7).clamp(200.0, 600.0);
+                final mq = MediaQuery.of(context);
+                final isSmallPhone = mq.size.width <= 360;
+                final maxHeight = isSmallPhone
+                    ? (maxWidth * 0.7).clamp(200.0, 600.0)
+                    : (maxWidth * 0.7);
                 return ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: maxHeight),
                   child: Image.file(
                     file,
                     width: double.infinity,
                     height: maxHeight,
-                    fit: BoxFit.contain,
+                    fit: MediaQuery.of(context).size.width <= 360
+                        ? BoxFit.contain
+                        : BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       // Se l'immagine locale fallisce, prova quella remota
                       return _buildNetworkImage(theme, localizations);
@@ -309,14 +315,20 @@ class DreamDetailsPage extends StatelessWidget {
           final maxWidth = constraints.maxWidth.isFinite
               ? constraints.maxWidth
               : MediaQuery.of(context).size.width;
-          final maxHeight = (maxWidth * 0.7).clamp(200.0, 600.0);
+          final mq = MediaQuery.of(context);
+          final isSmallPhone = mq.size.width <= 360;
+          final maxHeight = isSmallPhone
+              ? (maxWidth * 0.7).clamp(200.0, 600.0)
+              : (maxWidth * 0.7);
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxHeight),
             child: Image.network(
               dream.imageUrl!,
               width: double.infinity,
               height: maxHeight,
-              fit: BoxFit.contain,
+              fit: MediaQuery.of(context).size.width <= 360
+                  ? BoxFit.contain
+                  : BoxFit.cover,
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(

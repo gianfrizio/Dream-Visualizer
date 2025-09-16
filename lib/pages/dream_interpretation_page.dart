@@ -1390,7 +1390,11 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
             : MediaQuery.of(context).size.width;
         // Allow the image to take up to ~75% of the width in height, but never
         // more than 520 logical pixels (keeps large-tablet renders reasonable).
-        final calculatedMaxHeight = (maxWidth * 0.75).clamp(180.0, 520.0);
+        final mq = MediaQuery.of(context);
+        final isSmallPhone = mq.size.width <= 360;
+        final calculatedMaxHeight = isSmallPhone
+            ? (maxWidth * 0.75).clamp(180.0, 520.0)
+            : (maxWidth * 0.75); // allow larger images on bigger devices
 
         return Container(
           decoration: BoxDecoration(
@@ -1418,13 +1422,17 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                 child: _localImagePath != null && _localImagePath!.isNotEmpty
                     ? Image.file(
                         File(_localImagePath!),
-                        fit: BoxFit.contain,
+                        fit: MediaQuery.of(context).size.width <= 360
+                            ? BoxFit.contain
+                            : BoxFit.cover,
                         width: double.infinity,
                         height: calculatedMaxHeight,
                       )
                     : Image.network(
                         _imageUrl,
-                        fit: BoxFit.contain,
+                        fit: MediaQuery.of(context).size.width <= 360
+                            ? BoxFit.contain
+                            : BoxFit.cover,
                         width: double.infinity,
                         height: calculatedMaxHeight,
                         loadingBuilder: (context, child, loadingProgress) {
