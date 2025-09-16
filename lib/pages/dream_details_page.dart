@@ -269,13 +269,25 @@ class DreamDetailsPage extends StatelessWidget {
         future: file.exists(),
         builder: (context, snapshot) {
           if (snapshot.data == true) {
-            return Image.file(
-              file,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                // Se l'immagine locale fallisce, prova quella remota
-                return _buildNetworkImage(theme, localizations);
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final maxWidth = constraints.maxWidth.isFinite
+                    ? constraints.maxWidth
+                    : MediaQuery.of(context).size.width;
+                final maxHeight = (maxWidth * 0.7).clamp(200.0, 600.0);
+                return ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxHeight),
+                  child: Image.file(
+                    file,
+                    width: double.infinity,
+                    height: maxHeight,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Se l'immagine locale fallisce, prova quella remota
+                      return _buildNetworkImage(theme, localizations);
+                    },
+                  ),
+                );
               },
             );
           } else {
@@ -292,23 +304,35 @@ class DreamDetailsPage extends StatelessWidget {
 
   Widget _buildNetworkImage(ThemeData theme, AppLocalizations localizations) {
     if (dream.imageUrl != null && dream.imageUrl!.isNotEmpty) {
-      return Image.network(
-        dream.imageUrl!,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.of(context).size.width;
+          final maxHeight = (maxWidth * 0.7).clamp(200.0, 600.0);
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Image.network(
+              dream.imageUrl!,
+              width: double.infinity,
+              height: maxHeight,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: maxHeight,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return _buildImageErrorWidget(theme, localizations);
+              },
             ),
-            child: const Center(child: CircularProgressIndicator()),
           );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildImageErrorWidget(theme, localizations);
         },
       );
     } else {

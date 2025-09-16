@@ -941,7 +941,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
     // Modern, compact loading card with stronger visual hierarchy
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
+        constraints: BoxConstraints(
+          maxWidth: min(720.0, MediaQuery.of(context).size.width),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1143,7 +1145,9 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 980),
+          constraints: BoxConstraints(
+            maxWidth: min(980.0, MediaQuery.of(context).size.width),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1377,63 +1381,97 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
   // (helper removed) previously used for a different card layout; kept image card below
 
   Widget _imageCard(ThemeData theme, AppLocalizations localizations) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: _localImagePath != null && _localImagePath!.isNotEmpty
-            ? Image.file(File(_localImagePath!), fit: BoxFit.cover)
-            : Image.network(
-                _imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 300,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant,
-                    ),
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 220,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: theme.colorScheme.onErrorContainer,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            localizations.imageLoadError,
-                            style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Make the image responsive: cap the height to a sensible value based
+        // on available width to avoid overflow on small/tall screens.
+        final maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width;
+        // Allow the image to take up to ~75% of the width in height, but never
+        // more than 520 logical pixels (keeps large-tablet renders reasonable).
+        final calculatedMaxHeight = (maxWidth * 0.75).clamp(180.0, 520.0);
+
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
-      ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: double.infinity,
+                maxHeight: calculatedMaxHeight,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                // Use an intrinsic height so loading/error placeholders can
+                // match the space occupied by the final image to avoid jumps.
+                height: calculatedMaxHeight,
+                child: _localImagePath != null && _localImagePath!.isNotEmpty
+                    ? Image.file(
+                        File(_localImagePath!),
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: calculatedMaxHeight,
+                      )
+                    : Image.network(
+                        _imageUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: calculatedMaxHeight,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: calculatedMaxHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceVariant,
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: calculatedMaxHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.errorContainer,
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    size: 48,
+                                    color: theme.colorScheme.onErrorContainer,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    localizations.imageLoadError,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onErrorContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

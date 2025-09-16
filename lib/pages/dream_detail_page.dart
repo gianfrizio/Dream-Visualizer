@@ -168,25 +168,83 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
               background:
                   widget.dream.imageUrl != null &&
                       widget.dream.imageUrl!.isNotEmpty
-                  ? Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: NetworkImage(widget.dream.imageUrl!),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.7),
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Determine available width to compute a safe max height
+                        final maxWidth = constraints.maxWidth.isFinite
+                            ? constraints.maxWidth
+                            : MediaQuery.of(context).size.width;
+
+                        // Keep a reasonable aspect ratio clamp so the header doesn't overflow
+                        final calculatedMaxHeight = (maxWidth * 0.45).clamp(
+                          120.0,
+                          260.0,
+                        );
+
+                        return ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: calculatedMaxHeight,
+                          ),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.network(
+                                widget.dream.imageUrl!,
+                                height: calculatedMaxHeight,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return Container(
+                                    color: theme.colorScheme.surfaceVariant,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value:
+                                              progress.expectedTotalBytes !=
+                                                  null
+                                              ? progress.cumulativeBytesLoaded /
+                                                    progress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: theme.colorScheme.surfaceVariant,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 48,
+                                        color: theme.colorScheme.onSurface
+                                            .withOpacity(0.3),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              // Gradient overlay to keep title readable
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.6),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     )
                   : Container(
                       decoration: BoxDecoration(

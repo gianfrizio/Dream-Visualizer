@@ -810,23 +810,42 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child:
-                      dream.localImagePath != null &&
-                          dream.localImagePath!.isNotEmpty
-                      ? Image.file(
-                          File(dream.localImagePath!),
-                          height: 180,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxWidth = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : MediaQuery.of(context).size.width;
+                      final maxHeight = (maxWidth * 0.6).clamp(140.0, 360.0);
+                      return ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: double.infinity,
+                          maxHeight: maxHeight,
+                        ),
+                        child: SizedBox(
                           width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : dream.imageUrl != null && dream.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          dream.imageUrl!,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : const SizedBox.shrink(),
+                          height: maxHeight,
+                          child:
+                              dream.localImagePath != null &&
+                                  dream.localImagePath!.isNotEmpty
+                              ? Image.file(
+                                  File(dream.localImagePath!),
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: maxHeight,
+                                )
+                              : dream.imageUrl != null &&
+                                    dream.imageUrl!.isNotEmpty
+                              ? Image.network(
+                                  dream.imageUrl!,
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: maxHeight,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
 

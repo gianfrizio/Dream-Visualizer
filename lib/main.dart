@@ -1046,14 +1046,27 @@ class _DreamHomePageState extends State<DreamHomePage>
                           context: context,
                           removeBottom: false,
                           child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: _interpretation.isNotEmpty
-                                  ? _buildInterpretationCard(
-                                      theme,
-                                      localizations,
-                                    )
-                                  : const SizedBox.shrink(),
+                            child: Builder(
+                              builder: (context) {
+                                // Small-phone heuristic: logical width <= 360dp
+                                final mq = MediaQuery.of(context);
+                                final logicalWidth = mq.size.width;
+                                final isSmallPhone = logicalWidth <= 360;
+
+                                if (isSmallPhone) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12.0),
+                                  child: _interpretation.isNotEmpty
+                                      ? _buildInterpretationCard(
+                                          theme,
+                                          localizations,
+                                        )
+                                      : const SizedBox.shrink(),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -1484,69 +1497,84 @@ class _DreamHomePageState extends State<DreamHomePage>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    _imageUrl,
-                    width: double.infinity,
-                    height: 300,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 300,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(
-                                value:
-                                    loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: theme.colorScheme.primary,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxWidth = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : MediaQuery.of(context).size.width;
+                      final maxHeight = (maxWidth * 0.6).clamp(140.0, 300.0);
+                      return ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: maxHeight),
+                        child: Image.network(
+                          _imageUrl,
+                          width: double.infinity,
+                          height: maxHeight,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: maxHeight,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              const SizedBox(height: 16),
-                              Text(localizations.loadingImage),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 300,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_not_supported_rounded,
-                              size: 48,
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.5,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                              null
+                                          ? loadingProgress
+                                                    .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                          : null,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(localizations.loadingImage),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              localizations.cannotLoadImage,
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              localizations.tryAgainLater,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: maxHeight,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    0.3,
+                                  ),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image_not_supported_rounded,
+                                    size: 48,
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    localizations.cannotLoadImage,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    localizations.tryAgainLater,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
