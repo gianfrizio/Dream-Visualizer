@@ -70,6 +70,9 @@ class _StarryBackgroundState extends State<StarryBackground>
   late final List<Star> _stars;
   VideoPlayerController? _videoControllerLight;
   VideoPlayerController? _videoControllerDark;
+  // Playback speeds: light theme should be half speed per UX request
+  static const double _kLightVideoPlaybackSpeed = 0.5;
+  static const double _kDarkVideoPlaybackSpeed = 1.0;
   bool _initializingLight = false;
   bool _initializingDark = false;
   ThemeService? _themeService;
@@ -382,6 +385,16 @@ class _StarryBackgroundState extends State<StarryBackground>
             if (!_videoControllerLight!.value.isPlaying) {
               try {
                 debugPrint('Starting light video playback');
+                // Ensure playback speed is applied before playing
+                try {
+                  _videoControllerLight!.setPlaybackSpeed(
+                    _kLightVideoPlaybackSpeed,
+                  );
+                } catch (e) {
+                  // Some platform/video combinations may not support changing
+                  // playback speed; swallow the error and continue playing.
+                  debugPrint('Setting light playback speed failed: $e');
+                }
                 _videoControllerLight!.play();
               } catch (_) {}
             }
@@ -401,6 +414,14 @@ class _StarryBackgroundState extends State<StarryBackground>
             if (!_videoControllerDark!.value.isPlaying) {
               try {
                 debugPrint('Starting dark video playback');
+                // Use default playback speed for dark video
+                try {
+                  _videoControllerDark!.setPlaybackSpeed(
+                    _kDarkVideoPlaybackSpeed,
+                  );
+                } catch (e) {
+                  debugPrint('Setting dark playback speed failed: $e');
+                }
                 _videoControllerDark!.play();
               } catch (_) {}
             }

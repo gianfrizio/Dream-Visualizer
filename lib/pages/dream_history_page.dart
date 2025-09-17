@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
 import '../services/favorites_service.dart';
+import '../services/image_cache_service.dart';
 import '../l10n/app_localizations.dart';
 import 'dream_details_page.dart';
 
@@ -17,8 +19,10 @@ class DreamHistoryPage extends StatefulWidget {
 class _DreamHistoryPageState extends State<DreamHistoryPage> {
   final DreamStorageService _storageService = DreamStorageService();
   final FavoritesService _favoritesService = FavoritesService();
+  final ImageCacheService _imageCacheService = ImageCacheService();
   List<SavedDream> _dreams = [];
   List<SavedDream> _favoriteDreams = [];
+  final Set<String> _downloadingIds = {};
   final Set<String> _favoriteIds = {};
   bool _showFavorites = false;
   bool _isLoading = true;
@@ -226,6 +230,53 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _handleDownloadForDream(SavedDream dream) async {
+    // Allow multiple downloads - remove blocking checks
+
+    final imageUrl = dream.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return; // No snackbar for missing images
+    }
+
+    setState(() => _downloadingIds.add(dream.id));
+    try {
+      bool success = false;
+
+      // If already saved locally, use the local path to save to gallery
+      if (dream.localImagePath != null && dream.localImagePath!.isNotEmpty) {
+        success = await _imageCacheService.saveImageToGallery(
+          dream.localImagePath!,
+        );
+      } else {
+        // Download and save to gallery
+        final savedPath = await _imageCacheService.downloadAndCacheImage(
+          imageUrl,
+          dream.id,
+          saveToGallery: true,
+        );
+        success = savedPath != null;
+      }
+
+      // Show success message in current app language
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Image saved to gallery'
+                  : 'Immagine salvata in galleria',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading image: $e');
+      // Remove error snackbar - only show success
+    } finally {
+      if (mounted) setState(() => _downloadingIds.remove(dream.id));
     }
   }
 
@@ -545,6 +596,106 @@ class _DreamHistoryPageState extends State<DreamHistoryPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Image section if available
+              if (dream.imageUrl != null && dream.imageUrl!.isNotEmpty) ...[
+                SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child:
+                            dream.localImagePath != null &&
+                                dream.localImagePath!.isNotEmpty
+                            ? Image.file(
+                                File(dream.localImagePath!),
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.network(
+                                dream.imageUrl!,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return Container(
+                                    color: theme.colorScheme.surfaceContainer,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        value:
+                                            progress.expectedTotalBytes != null
+                                            ? progress.cumulativeBytesLoaded /
+                                                  progress.expectedTotalBytes!
+                                            : null,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: theme.colorScheme.surfaceContainer,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 48,
+                                        color: theme.colorScheme.onSurface
+                                            .withOpacity(0.3),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      // Download button positioned on the image
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: GestureDetector(
+                          onTap: () => _handleDownloadForDream(dream),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                              border: Border.all(
+                                color: theme.colorScheme.primary,
+                                width: 1.0,
+                              ),
+                            ),
+                            child: _downloadingIds.contains(dream.id)
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.cloud_download_rounded,
+                                    color: theme.colorScheme.onSurface,
+                                    size: 20,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

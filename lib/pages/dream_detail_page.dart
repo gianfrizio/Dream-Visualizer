@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/saved_dream.dart';
 import '../services/favorites_service.dart';
 import '../services/social_interaction_service.dart';
+import '../services/image_cache_service.dart';
 import '../services/translation_service.dart';
 
 class DreamDetailPage extends StatefulWidget {
@@ -19,6 +20,9 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
   bool _isLiked = false;
   int _likeCount = 12; // Placeholder
   bool _isFavorite = false;
+  bool _isDownloading = false;
+
+  final ImageCacheService _imageCacheService = ImageCacheService();
 
   // Servizio per gestire i preferiti
   final FavoritesService _favoritesService = FavoritesService();
@@ -238,6 +242,57 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
                                       Colors.transparent,
                                       Colors.black.withOpacity(0.6),
                                     ],
+                                  ),
+                                ),
+                              ),
+                              // Download button positioned on the image
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: GestureDetector(
+                                  onTap: _handleDownload,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primaryContainer,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    child: _isDownloading
+                                        ? SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                  ),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.cloud_download_rounded,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
+                                            size: 20,
+                                          ),
                                   ),
                                 ),
                               ),
@@ -952,6 +1007,54 @@ class _DreamDetailPageState extends State<DreamDetailPage> {
     });
 
     // success SnackBar removed for favorite toggle
+  }
+
+  Future<void> _handleDownload() async {
+    // Allow multiple downloads - remove blocking check
+
+    final imageUrl = widget.dream.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return; // No snackbar for missing images
+    }
+
+    setState(() => _isDownloading = true);
+    try {
+      bool success = false;
+
+      // If already saved locally, use the local path to save to gallery
+      if (widget.dream.localImagePath != null &&
+          widget.dream.localImagePath!.isNotEmpty) {
+        success = await _imageCacheService.saveImageToGallery(
+          widget.dream.localImagePath!,
+        );
+      } else {
+        // Download and save to gallery
+        final savedPath = await _imageCacheService.downloadAndCacheImage(
+          imageUrl,
+          widget.dream.id,
+          saveToGallery: true,
+        );
+        success = savedPath != null;
+      }
+
+      // Show only success message in both languages
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Image saved to gallery'
+                  : 'Immagine salvata in galleria',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading image: $e');
+      // Remove error snackbar - only show success
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
   }
 
   void _likeComment(Comment comment) async {

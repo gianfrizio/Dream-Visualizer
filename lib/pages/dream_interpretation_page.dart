@@ -202,8 +202,64 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
   bool _isComplete = false;
   bool _resumedFromPending = false;
   bool _isSaved = false;
+  bool _isFavorite = false; // visual state of the favorite star (initially off)
   String? _lastSavedDreamId;
+  bool _isDownloading = false;
   final FavoritesService _favoritesService = FavoritesService();
+
+  Future<void> _handleDownload(BuildContext context) async {
+    // Allow multiple downloads - remove the blocking check
+    setState(() {
+      _isDownloading = true;
+    });
+
+    final scaffold = ScaffoldMessenger.of(context);
+
+    try {
+      final imageCacheService = ImageCacheService();
+      bool success = false;
+
+      // If we already have a local path (cached), save it to gallery
+      if (_localImagePath != null && _localImagePath!.isNotEmpty) {
+        // Also save to gallery explicitly when download button is pressed
+        success = await imageCacheService.saveImageToGallery(_localImagePath!);
+      } else if (_imageUrl.isNotEmpty) {
+        // Use existing dream id if available, otherwise generate a timestamp id
+        final dreamId =
+            _lastSavedDreamId ??
+            DateTime.now().millisecondsSinceEpoch.toString();
+        final savedPath = await imageCacheService.downloadAndCacheImage(
+          _imageUrl,
+          dreamId,
+          saveToGallery: true,
+        );
+        success = savedPath != null && savedPath.isNotEmpty;
+      }
+
+      // Show success message in current app language
+      if (success) {
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Image saved to gallery'
+                  : 'Immagine salvata in galleria',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Errore during image download: $e');
+      // Remove error snackbar - only show success
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+      }
+    }
+  }
+
   // Controls whether the inline advice is expanded (collapsible box)
   // Default to expanded so the responsive Wrap shows full text immediately.
   bool _isAdviceExpanded = true;
@@ -312,6 +368,8 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
           _isGeneratingImage = false;
           _isComplete = true;
           _resumedFromPending = true;
+          // When an image is freshly loaded from a pending job, start with star off
+          _isFavorite = false;
         });
       }
 
@@ -331,6 +389,8 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
               _imageUrl = '';
               _isComplete = true;
               _isGeneratingImage = false;
+              // Freshly cached local image should start with favorite off
+              _isFavorite = false;
             });
           }
           await _clearPendingJob();
@@ -1287,13 +1347,19 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                           );
 
                           try {
-                            // Add explicitly to favorites (no toggle) so the item is guaranteed added
-                            await _favoritesService.addToFavorites(dream);
+                            // Toggle favorite state; returns true if added, false if removed
+                            final added = await _favoritesService
+                                .toggleFavorite(dream);
+                            setState(() {
+                              _isFavorite = added;
+                            });
 
-                            // provide the same star-flying animation; treat as 'added'
-                            _launchStarAnimation(context, true);
+                            // Only run the add animation when the item was added
+                            if (added) {
+                              _launchStarAnimation(context, true);
+                            }
                           } catch (e) {
-                            debugPrint('Failed adding to favorites: $e');
+                            debugPrint('Failed toggling favorite: $e');
                           }
                         },
                         child: Container(
@@ -1315,11 +1381,75 @@ class _DreamInterpretationPageState extends State<DreamInterpretationPage>
                               width: 1.2,
                             ),
                           ),
-                          child: Icon(
-                            Icons.star,
-                            color: Colors.amber.shade600,
-                            size: 22,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 280),
+                            transitionBuilder: (child, anim) {
+                              return ScaleTransition(scale: anim, child: child);
+                            },
+                            child: _isFavorite
+                                ? Icon(
+                                    Icons.star,
+                                    key: const ValueKey('fav_on'),
+                                    color: Colors.amber.shade600,
+                                    size: 22,
+                                  )
+                                : Icon(
+                                    Icons.star_border,
+                                    key: const ValueKey('fav_off'),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 22,
+                                  ),
                           ),
+                        ),
+                      ),
+                    ),
+                    // Download button positioned slightly left of the favorite star
+                    Positioned(
+                      right: 64,
+                      top: 12,
+                      child: GestureDetector(
+                        onTap: () async {
+                          await _handleDownload(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.12),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 1.0,
+                            ),
+                          ),
+                          child: _isDownloading
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    valueColor: AlwaysStoppedAnimation(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.cloud_download_rounded,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                  size: 20,
+                                ),
                         ),
                       ),
                     ),

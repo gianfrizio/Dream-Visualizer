@@ -2,13 +2,18 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:gal/gal.dart';
 
 class ImageCacheService {
   static const String _imagesFolder = 'dream_images';
 
   /// Scarica un'immagine da URL e la salva localmente
   /// Restituisce il percorso locale del file salvato
-  Future<String?> downloadAndCacheImage(String imageUrl, String dreamId) async {
+  Future<String?> downloadAndCacheImage(
+    String imageUrl,
+    String dreamId, {
+    bool saveToGallery = false,
+  }) async {
     try {
       // Scarica l'immagine
       final response = await http.get(Uri.parse(imageUrl));
@@ -37,10 +42,30 @@ class ImageCacheService {
       await file.writeAsBytes(response.bodyBytes);
 
       debugPrint('Immagine salvata in: $filePath');
+
+      // Salva anche nella galleria se richiesto
+      if (saveToGallery) {
+        final galleryResult = await saveImageToGallery(filePath);
+        debugPrint(
+          'Salvataggio in galleria: ${galleryResult ? 'successo' : 'fallito'}',
+        );
+      }
+
       return filePath;
     } catch (e) {
       debugPrint('Errore nel salvare l\'immagine: $e');
       return null;
+    }
+  }
+
+  /// Salva un'immagine già esistente nella galleria del dispositivo
+  Future<bool> saveImageToGallery(String filePath) async {
+    try {
+      await Gal.putImage(filePath);
+      return true;
+    } catch (e) {
+      debugPrint('Errore nel salvare l\'immagine in galleria: $e');
+      return false;
     }
   }
 

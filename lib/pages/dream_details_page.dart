@@ -3,11 +3,69 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/saved_dream.dart';
 import '../l10n/app_localizations.dart';
+import '../services/image_cache_service.dart';
 
-class DreamDetailsPage extends StatelessWidget {
+class DreamDetailsPage extends StatefulWidget {
   final SavedDream dream;
 
   const DreamDetailsPage({super.key, required this.dream});
+
+  @override
+  State<DreamDetailsPage> createState() => _DreamDetailsPageState();
+}
+
+class _DreamDetailsPageState extends State<DreamDetailsPage> {
+  final ImageCacheService _imageCacheService = ImageCacheService();
+  bool _isDownloading = false;
+
+  Future<void> _handleDownload() async {
+    setState(() {
+      _isDownloading = true;
+    });
+
+    try {
+      bool success = false;
+
+      // If already saved locally, use the local path to save to gallery
+      if (widget.dream.localImagePath != null &&
+          widget.dream.localImagePath!.isNotEmpty) {
+        success = await _imageCacheService.saveImageToGallery(
+          widget.dream.localImagePath!,
+        );
+      } else if (widget.dream.imageUrl != null &&
+          widget.dream.imageUrl!.isNotEmpty) {
+        // Download and save to gallery
+        final savedPath = await _imageCacheService.downloadAndCacheImage(
+          widget.dream.imageUrl!,
+          widget.dream.id,
+          saveToGallery: true,
+        );
+        success = savedPath != null;
+      }
+
+      // Show success message in current app language
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Image saved to gallery'
+                  : 'Immagine salvata in galleria',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading image: $e');
+      // Remove error snackbar - only show success
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +86,7 @@ class DreamDetailsPage extends StatelessWidget {
               backgroundColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
                 title: Text(
-                  dream.title,
+                  widget.dream.title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -79,7 +137,7 @@ class DreamDetailsPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        dateFormatter.format(dream.createdAt),
+                        dateFormatter.format(widget.dream.createdAt),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.7,
@@ -113,13 +171,13 @@ class DreamDetailsPage extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        dream.dreamText,
+                        widget.dream.dreamText,
                         style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
                       ),
                     ),
 
                     // Interpretazione (se presente)
-                    if (dream.interpretation.isNotEmpty) ...[
+                    if (widget.dream.interpretation.isNotEmpty) ...[
                       const SizedBox(height: 32),
                       Text(
                         localizations.interpretationTitle,
@@ -144,7 +202,7 @@ class DreamDetailsPage extends StatelessWidget {
                           ],
                         ),
                         child: Text(
-                          dream.interpretation,
+                          widget.dream.interpretation,
                           style: theme.textTheme.bodyLarge?.copyWith(
                             height: 1.6,
                             color: theme.colorScheme.onSecondaryContainer,
@@ -154,7 +212,7 @@ class DreamDetailsPage extends StatelessWidget {
                     ],
 
                     // Immagine (se presente)
-                    if (dream.hasImage) ...[
+                    if (widget.dream.hasImage) ...[
                       const SizedBox(height: 32),
                       Text(
                         localizations.visualization,
@@ -168,7 +226,7 @@ class DreamDetailsPage extends StatelessWidget {
                     ],
 
                     // Tags (se presenti)
-                    if (dream.tags.isNotEmpty) ...[
+                    if (widget.dream.tags.isNotEmpty) ...[
                       const SizedBox(height: 32),
                       Text(
                         'Tag',
@@ -180,7 +238,7 @@ class DreamDetailsPage extends StatelessWidget {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: dream.tags
+                        children: widget.dream.tags
                             .map(
                               (tag) => Chip(
                                 label: Text(tag),
@@ -197,7 +255,7 @@ class DreamDetailsPage extends StatelessWidget {
                     ],
 
                     // Stato di condivisione
-                    if (dream.isSharedWithCommunity) ...[
+                    if (widget.dream.isSharedWithCommunity) ...[
                       const SizedBox(height: 24),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -263,8 +321,9 @@ class DreamDetailsPage extends StatelessWidget {
 
   Widget _buildImageWidget(ThemeData theme, AppLocalizations localizations) {
     // Prova prima l'immagine locale
-    if (dream.localImagePath != null && dream.localImagePath!.isNotEmpty) {
-      final file = File(dream.localImagePath!);
+    if (widget.dream.localImagePath != null &&
+        widget.dream.localImagePath!.isNotEmpty) {
+      final file = File(widget.dream.localImagePath!);
       return FutureBuilder<bool>(
         future: file.exists(),
         builder: (context, snapshot) {
@@ -281,17 +340,49 @@ class DreamDetailsPage extends StatelessWidget {
                     : (maxWidth * 0.7);
                 return ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: maxHeight),
-                  child: Image.file(
-                    file,
-                    width: double.infinity,
-                    height: maxHeight,
-                    fit: MediaQuery.of(context).size.width <= 360
-                        ? BoxFit.contain
-                        : BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Se l'immagine locale fallisce, prova quella remota
-                      return _buildNetworkImage(theme, localizations);
-                    },
+                  child: Stack(
+                    children: [
+                      Image.file(
+                        file,
+                        width: double.infinity,
+                        height: maxHeight,
+                        fit: MediaQuery.of(context).size.width <= 360
+                            ? BoxFit.contain
+                            : BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Se l'immagine locale fallisce, prova quella remota
+                          return _buildNetworkImage(theme, localizations);
+                        },
+                      ),
+                      // Download button
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: CircleAvatar(
+                          backgroundColor: theme.colorScheme.primaryContainer
+                              .withValues(alpha: 0.9),
+                          radius: 20,
+                          child: _isDownloading
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: Icon(
+                                    Icons.cloud_download_rounded,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                    size: 20,
+                                  ),
+                                  onPressed: _handleDownload,
+                                  padding: EdgeInsets.zero,
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -309,7 +400,7 @@ class DreamDetailsPage extends StatelessWidget {
   }
 
   Widget _buildNetworkImage(ThemeData theme, AppLocalizations localizations) {
-    if (dream.imageUrl != null && dream.imageUrl!.isNotEmpty) {
+    if (widget.dream.imageUrl != null && widget.dream.imageUrl!.isNotEmpty) {
       return LayoutBuilder(
         builder: (context, constraints) {
           final maxWidth = constraints.maxWidth.isFinite
@@ -322,27 +413,59 @@ class DreamDetailsPage extends StatelessWidget {
               : (maxWidth * 0.7);
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxHeight),
-            child: Image.network(
-              dream.imageUrl!,
-              width: double.infinity,
-              height: maxHeight,
-              fit: MediaQuery.of(context).size.width <= 360
-                  ? BoxFit.contain
-                  : BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
+            child: Stack(
+              children: [
+                Image.network(
+                  widget.dream.imageUrl!,
+                  width: double.infinity,
                   height: maxHeight,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(16),
+                  fit: MediaQuery.of(context).size.width <= 360
+                      ? BoxFit.contain
+                      : BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: maxHeight,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildImageErrorWidget(theme, localizations);
+                  },
+                ),
+                // Download button
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: CircleAvatar(
+                    backgroundColor: theme.colorScheme.primaryContainer
+                        .withValues(alpha: 0.9),
+                    radius: 20,
+                    child: _isDownloading
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          )
+                        : IconButton(
+                            icon: Icon(
+                              Icons.cloud_download_rounded,
+                              color: theme.colorScheme.onPrimaryContainer,
+                              size: 20,
+                            ),
+                            onPressed: _handleDownload,
+                            padding: EdgeInsets.zero,
+                          ),
                   ),
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return _buildImageErrorWidget(theme, localizations);
-              },
+                ),
+              ],
             ),
           );
         },

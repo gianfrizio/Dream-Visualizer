@@ -5,6 +5,7 @@ import '../models/saved_dream.dart';
 import '../services/dream_storage_service.dart';
 import '../services/favorites_service.dart';
 import '../services/social_interaction_service.dart';
+import '../services/image_cache_service.dart';
 import 'dream_detail_page.dart';
 import '../l10n/app_localizations.dart';
 
@@ -22,6 +23,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   final DreamStorageService _dreamStorage = DreamStorageService();
   final FavoritesService _favoritesService = FavoritesService();
   final SocialInteractionService _socialService = SocialInteractionService();
+  final ImageCacheService _imageCacheService = ImageCacheService();
 
   List<SavedDream> _userDreams = [];
   List<SavedDream> _communityDreams = [];
@@ -37,6 +39,7 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   Map<String, int> _dreamCommentCounts = {};
   Map<String, bool> _userLikedDreams = {};
   Map<String, bool> _userFavoriteDreams = {};
+  final Set<String> _downloadingIds = {};
 
   // Mappe per i like dei commenti
   Map<String, int> _commentLikeCounts = {};
@@ -47,6 +50,53 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
   // Etichette multilingue per categorie
   List<String> get _categories {
     return ['all', 'nightmare', 'adventure', 'romance', 'fantasy', 'recurring'];
+  }
+
+  Future<void> _handleDownloadForCommunityDream(SavedDream dream) async {
+    // Allow multiple downloads - remove blocking checks
+
+    final imageUrl = dream.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return; // No snackbar for missing images
+    }
+
+    setState(() => _downloadingIds.add(dream.id));
+    try {
+      bool success = false;
+
+      // If already saved locally, use the local path to save to gallery
+      if (dream.localImagePath != null && dream.localImagePath!.isNotEmpty) {
+        success = await _imageCacheService.saveImageToGallery(
+          dream.localImagePath!,
+        );
+      } else {
+        // Download and save to gallery
+        final savedPath = await _imageCacheService.downloadAndCacheImage(
+          imageUrl,
+          dream.id,
+          saveToGallery: true,
+        );
+        success = savedPath != null;
+      }
+
+      // Show success message in current app language
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Image saved to gallery'
+                  : 'Immagine salvata in galleria',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading image: $e');
+      // Remove error snackbar - only show success
+    } finally {
+      if (mounted) setState(() => _downloadingIds.remove(dream.id));
+    }
   }
 
   // Etichette multilingue per ordinamento
@@ -825,31 +875,93 @@ class _ImprovedCommunityPageState extends State<ImprovedCommunityPage>
                           maxWidth: double.infinity,
                           maxHeight: maxHeight,
                         ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: maxHeight,
-                          child:
-                              dream.localImagePath != null &&
-                                  dream.localImagePath!.isNotEmpty
-                              ? Image.file(
-                                  File(dream.localImagePath!),
-                                  fit: MediaQuery.of(context).size.width <= 360
-                                      ? BoxFit.contain
-                                      : BoxFit.cover,
-                                  width: double.infinity,
-                                  height: maxHeight,
-                                )
-                              : dream.imageUrl != null &&
-                                    dream.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  dream.imageUrl!,
-                                  fit: MediaQuery.of(context).size.width <= 360
-                                      ? BoxFit.contain
-                                      : BoxFit.cover,
-                                  width: double.infinity,
-                                  height: maxHeight,
-                                )
-                              : const SizedBox.shrink(),
+                        child: Stack(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              height: maxHeight,
+                              child:
+                                  dream.localImagePath != null &&
+                                      dream.localImagePath!.isNotEmpty
+                                  ? Image.file(
+                                      File(dream.localImagePath!),
+                                      fit:
+                                          MediaQuery.of(context).size.width <=
+                                              360
+                                          ? BoxFit.contain
+                                          : BoxFit.cover,
+                                      width: double.infinity,
+                                      height: maxHeight,
+                                    )
+                                  : dream.imageUrl != null &&
+                                        dream.imageUrl!.isNotEmpty
+                                  ? Image.network(
+                                      dream.imageUrl!,
+                                      fit:
+                                          MediaQuery.of(context).size.width <=
+                                              360
+                                          ? BoxFit.contain
+                                          : BoxFit.cover,
+                                      width: double.infinity,
+                                      height: maxHeight,
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            // Download button positioned on the image
+                            if (dream.imageUrl != null &&
+                                dream.imageUrl!.isNotEmpty)
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      _handleDownloadForCommunityDream(dream),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primaryContainer,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                    child: _downloadingIds.contains(dream.id)
+                                        ? SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                  ),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.cloud_download_rounded,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
+                                            size: 20,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       );
                     },
